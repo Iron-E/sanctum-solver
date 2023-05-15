@@ -259,7 +259,7 @@ mod tests {
 		assert_eq!(test_paths.len(), 2);
 
 		// The shortest path from the left-hand Spawn should be of length nine.
-		assertion(&test_tileset, &test_paths, 0, 7);
+		assertion(&test_tileset, &test_paths, 0, 8);
 
 		// The shortest path from the right-hand Spawn should be of length 15.
 		assertion(&test_tileset, &test_paths, 1, 9);

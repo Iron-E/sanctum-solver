@@ -50,31 +50,24 @@ impl Path {
 			if tile.is_passable() && tile != needle {
 				Adjacent::<Coordinate>::from_array_coordinate(&tileset.0, &coord).for_each(
 					|adjacent| {
-						let mut new_path = current_path.clone();
+						let mut new_path = Vec::with_capacity(current_path.len() + 1);
+						new_path.extend_from_slice(&current_path);
 						new_path.push(adjacent);
 
 						coordinate_path_queue.push_back((adjacent, new_path))
 					},
 				);
 			}
+			// Using BFS, so if the `tile` is the `needle` we've found the shortest path.
+			else if tile == needle {
+				return Some(Path(current_path));
+			}
 
 			// Now that the current coordinate has been fully evaluated, mark it as visited.
 			visited.insert(coord, current_path);
-
-			// Using BFS, so if the `tile` is the `needle` we've found the shortest path.
-			if tile == needle {
-				break;
-			}
 		}
 
-		visited
-			.into_iter()
-			.filter(|(coord, _)| {
-				// Only want Tiles of `needle`'s type
-				coord.get_from(&tileset.0).expect(COORDINATE_ON_TILESET) == needle
-			})
-			.map(|(_, path)| Path(path))
-			.reduce(Path::return_shorter)
+		None
 	}
 
 	/// # Summary

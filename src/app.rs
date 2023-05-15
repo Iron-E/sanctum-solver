@@ -1,9 +1,9 @@
 mod error;
 
 use {
-	crate::Map,
+	crate::map::Map,
 	error::Result,
-	std::{fs, io, path::PathBuf},
+	std::{fs, path::PathBuf},
 	structopt::StructOpt,
 };
 

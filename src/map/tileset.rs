@@ -14,25 +14,19 @@ pub const REGION_HAS_COORDINATE: &str = "Expected the region to have at least on
 
 /// # Summary
 ///
-/// A two-dimensional array / grid of [`Tile`]s.
+/// T two-dimensional array / grid of [`Tile`]s.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct Tileset<A>
-where
-	A: AsRef<[Tile]>,
-{
-	pub grid: Vec<A>,
+pub struct Tileset {
+	pub grid: Vec<Vec<Tile>>,
 	pub entrances: Vec<HashSet<Coordinate>>,
 	pub exits: HashSet<Coordinate>,
 }
 
-impl<A> Tileset<A>
-where
-	A: AsRef<[Tile]>,
-{
+impl Tileset {
 	/// # Summary
 	///
 	/// Select all of the [`Tile::Empty`]s next to [`Tile::Spawn`] points on this [`Tileset`].
-	fn entrances(tileset: &[A]) -> Vec<HashSet<Coordinate>> {
+	fn entrances(tileset: &[impl AsRef<[Tile]>]) -> Vec<HashSet<Coordinate>> {
 		Self::separate_regions(tileset, Tile::Spawn)
 			.expect(IS_REGION)
 			.into_iter()
@@ -50,7 +44,7 @@ where
 	/// # Summary
 	///
 	/// Select all of the [`Tile::Empty`]s next to [`Tile::Core`] points on this [`Tileset`].
-	fn exits(tileset: &[A]) -> HashSet<Coordinate> {
+	fn exits(tileset: &[impl AsRef<[Tile]>]) -> HashSet<Coordinate> {
 		Self::separate_regions(tileset, Tile::Core)
 			.expect(IS_REGION)
 			.into_iter()
@@ -70,7 +64,11 @@ where
 	///
 	/// Get the adjacent [`Tile`]s of `needle`'s type which are adjecent to the `start`ing
 	/// [`Coordinate`].
-	fn get_adjacent_to(tileset: &[A], start: Coordinate, needle: Tile) -> HashSet<Coordinate> {
+	pub fn get_adjacent_to(
+		tileset: &[impl AsRef<[Tile]>],
+		start: Coordinate,
+		needle: Tile,
+	) -> HashSet<Coordinate> {
 		let start_tile = start.get_from(&tileset).expect(COORDINATE_ON_TILESET);
 
 		let mut coordinate_queue = LinkedList::new();
@@ -110,7 +108,7 @@ where
 	/// # Summary
 	///
 	/// Create a new [`Tileset`] from some two-dimensional `grid` of [`Tile`]s.
-	pub fn new(grid: Vec<A>) -> Self {
+	pub fn new(grid: Vec<Vec<Tile>>) -> Self {
 		Self {
 			entrances: Self::entrances(&grid),
 			exits: Self::exits(&grid),
@@ -121,7 +119,10 @@ where
 	/// # Summary
 	///
 	/// Get all of the different regions for some type of `tile`.
-	fn separate_regions(tileset: &[A], start_tile: Tile) -> Result<Vec<HashSet<Coordinate>>> {
+	fn separate_regions(
+		tileset: &[impl AsRef<[Tile]>],
+		start_tile: Tile,
+	) -> Result<Vec<HashSet<Coordinate>>> {
 		if !start_tile.is_region() {
 			return Err(Error::NotRegion { tile: start_tile });
 		}
@@ -182,7 +183,7 @@ pub mod tests {
 
 	/// # Summary
 	///
-	/// A representation of the map _Park_ from _Sanctum 2_.
+	/// T representation of the map _Park_ from _Sanctum 2_.
 	#[rustfmt::skip]
 	pub const PARK: [[Tile; 16]; 14] = [
 		// 0     1       2       3       4       5       6       7       8       9       10      11      12     13     14      15
@@ -204,7 +205,7 @@ pub mod tests {
 
 	/// # Summary
 	///
-	/// A representation of the map _Park_ from _Sanctum 2_.
+	/// T representation of the map _Park_ from _Sanctum 2_.
 	#[rustfmt::skip]
 	pub const PARK_TWO_SPAWN: [[Tile; 16]; 14] = [
 		// 0     1       2       3       4       5       6       7       8       9       10      11      12     13     14      15

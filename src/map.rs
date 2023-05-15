@@ -1,10 +1,14 @@
 mod adjacent;
+mod build;
 mod coordinate;
-mod path;
+mod shortest_path;
 mod tile;
 pub mod tileset;
 
-pub use {adjacent::Adjacent, coordinate::Coordinate, tile::Tile};
+pub use {
+	adjacent::Adjacent, build::Build, coordinate::Coordinate, shortest_path::ShortestPath,
+	tile::Tile,
+};
 
 use {
 	serde::{Deserialize, Serialize},
@@ -12,10 +16,7 @@ use {
 };
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct Map<A>
-where
-	A: AsRef<[Tile]>,
-{
+pub struct Map {
 	pub name: String,
-	pub tileset: Tileset<A>,
+	pub tileset: Tileset,
 }

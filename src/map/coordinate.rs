@@ -13,6 +13,17 @@ pub struct Coordinate(pub usize, pub usize);
 impl Coordinate {
 	/// # Summary
 	///
+	/// Calculate the distance between this [`Coordinate`] and the `other`.
+	///
+	/// # Remarks
+	///
+	/// This does not take into account any barriers which may exist between the [`Coordinate`]s.
+	pub fn distance_from(&self, other: &Self) -> usize {
+		((self.0 as i128 - other.0 as i128).abs() + (self.1 as i128 - other.1 as i128).abs()) as usize
+	}
+
+	/// # Summary
+	///
 	/// Retrieve the `T` value stored at the [`Coordinate`] in array.
 	pub fn get_from<T>(&self, grid: &[impl AsRef<[T]>]) -> Option<T>
 	where

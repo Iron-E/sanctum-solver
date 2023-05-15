@@ -16,4 +16,5 @@ use serde::{Deserialize, Serialize};
 pub struct Map {
 	pub name: String,
 	pub grid: Vec<Vec<Tile>>,
+	pub shortest_path_length: Option<Vec<Option<usize>>>,
 }

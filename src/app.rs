@@ -1,9 +1,9 @@
 mod error;
 
 use {
-	crate::map::{tileset::Tileset, Build, Map},
+	crate::map::{tileset::Tileset, Build, Map, ShortestPath},
 	error::Result,
-	std::{fs, path::PathBuf},
+	std::{collections::HashSet, fs, path::PathBuf},
 	structopt::StructOpt,
 };
 
@@ -50,6 +50,12 @@ impl App {
 		build.apply_to(&mut tileset.grid);
 
 		map.grid = tileset.grid;
+		map.shortest_path_length = Some(
+			ShortestPath::from_entrances_to_any_core(
+				&Tileset::new(map.grid.clone()),
+				Option::<&HashSet<_>>::None,
+			).into_iter().map(|path| path.and_then(|p| Some(p.len()))).collect()
+		);
 
 		let map_json = serde_json::to_string_pretty(&map)?;
 		if let Some(output) = self.output {

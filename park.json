@@ -6,7 +6,7 @@
 		["Spawn",  "Pass",   "Pass",   "Pass",   "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Impass", "Impass", "Empty",  "Empty", "Empty", "Empty",  "Empty"],
 		["Pass",   "Pass",   "Pass",   "Pass",   "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Empty", "Empty", "Empty",  "Empty"],
 		["Pass",   "Pass",   "Pass",   "Pass",   "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Empty", "Empty", "Empty",  "Empty"],
-		["Impass", "Impass", "Impass", "Impass", "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Empty", "Empty", "Empty",  "Spawn"],
+		["Impass", "Impass", "Impass", "Impass", "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Empty", "Empty", "Empty",  "Empty"],
 		["Impass", "Impass", "Impass", "Impass", "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Empty", "Empty", "Empty",  "Empty"],
 		["Impass", "Impass", "Impass", "Impass", "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Empty", "Empty", "Empty",  "Empty"],
 		["Impass", "Impass", "Impass", "Impass", "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Empty", "Empty", "Empty",  "Empty"],

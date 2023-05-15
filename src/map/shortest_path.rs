@@ -1,8 +1,9 @@
 use {
 	super::{
 		tileset::{Tileset, COORDINATE_ON_TILESET},
-		Adjacent, Build, Coordinate, Tile,
+		Adjacent, Coordinate, Tile,
 	},
+	crate::Container,
 	rayon::iter::{IntoParallelRefIterator, ParallelIterator},
 	serde::{Deserialize, Serialize},
 	std::{
@@ -44,7 +45,7 @@ impl ShortestPath {
 	/// * `None` if there is no [`ShortestPath`].
 	pub fn from_any_grid_coordinate_to_tile<'coord>(
 		grid: &[impl AsRef<[Tile]> + Send + Sync],
-		build: Option<&Build>,
+		build: Option<&impl Container<Coordinate>>,
 		start_points: impl ParallelIterator<Item = &'coord Coordinate>,
 		end_tile: Tile,
 	) -> Option<Self> {
@@ -59,7 +60,7 @@ impl ShortestPath {
 	/// Get the [`ShortestPath`]s from all [`Tileset::entrances`] to any [`Tileset::exits`].
 	pub fn from_entrances_to_any_core(
 		tileset: &Tileset,
-		build: Option<&Build>,
+		build: Option<&impl Container<Coordinate>>,
 	) -> Vec<Option<Self>> {
 		tileset
 			.entrances_by_region
@@ -80,12 +81,12 @@ impl ShortestPath {
 	/// Get the shortest [`ShortestPath`] to a [`Tile`] of `end_tile`'s type from some `start`ing [`Coordinate`] on a `tileset`.
 	pub fn from_grid_coordinate_to_tile(
 		grid: &[impl AsRef<[Tile]>],
-		build: Option<&Build>,
+		build: Option<&impl Container<Coordinate>>,
 		start: Coordinate,
 		end_point: Tile,
 	) -> Option<Self> {
 		let start_tile = start
-			.get_from_build(&grid, build)
+			.get_from_with_build(&grid, build)
 			.expect(COORDINATE_ON_TILESET);
 
 		// We don't want to start the search on a tile which cannot be walked over.
@@ -110,7 +111,7 @@ impl ShortestPath {
 			}
 
 			let tile: Tile = coord
-				.get_from_build(&grid, build)
+				.get_from_with_build(&grid, build)
 				.expect(COORDINATE_ON_TILESET);
 
 			// Using BFS, so if the `tile` is the `end_tile` we've found the shortest path.
@@ -120,13 +121,15 @@ impl ShortestPath {
 			// Only keep looking beyond a passable tile, and if the current tile is not what we're
 			// searching for.
 			else if tile.is_passable() {
-				Adjacent::from_build_coordinate(&grid, build, &coord).for_each(|adjacent_coord| {
-					let mut new_path = Vec::with_capacity(current_path.len() + 1);
-					new_path.extend_from_slice(&current_path);
-					new_path.push(adjacent_coord);
+				Adjacent::from_grid_coordinate_with_build(&grid, build, &coord).for_each(
+					|adjacent_coord| {
+						let mut new_path = Vec::with_capacity(current_path.len() + 1);
+						new_path.extend_from_slice(&current_path);
+						new_path.push(adjacent_coord);
 
-					coordinate_path_queue.push_back((adjacent_coord, new_path))
-				});
+						coordinate_path_queue.push_back((adjacent_coord, new_path))
+					},
+				);
 			}
 
 			// Now that the current coordinate has been fully evaluated, mark it as visited.
@@ -168,7 +171,7 @@ mod tests {
 		super::{Coordinate, ShortestPath, Tile, Tileset, COORDINATE_ON_TILESET},
 		crate::map::tileset::tests::{PARK, PARK_TWO_SPAWN},
 		rayon::iter::IntoParallelRefIterator,
-		std::time::Instant,
+		std::{collections::HashSet, time::Instant},
 	};
 
 	fn assertion(tileset: &Tileset, paths: &[ShortestPath], index: usize, desired_len: usize) {
@@ -203,7 +206,7 @@ mod tests {
 			.map(|entrances| {
 				ShortestPath::from_any_grid_coordinate_to_tile(
 					&test_tileset.grid,
-					None,
+					Option::<&HashSet<_>>::None,
 					entrances.par_iter(),
 					Tile::Core,
 				)
@@ -218,7 +221,7 @@ mod tests {
 
 		let start = Instant::now();
 		let test_from_entrances_to_any_core =
-			ShortestPath::from_entrances_to_any_core(&test_tileset, None)
+			ShortestPath::from_entrances_to_any_core(&test_tileset, Option::<&HashSet<_>>::None)
 				.into_iter()
 				.flatten()
 				.collect::<Vec<_>>();
@@ -251,7 +254,7 @@ mod tests {
 		let start = Instant::now();
 		let test_path = ShortestPath::from_grid_coordinate_to_tile(
 			&test_tileset.grid,
-			None,
+			Option::<&HashSet<_>>::None,
 			Coordinate(4, 4),
 			Tile::Core,
 		)

@@ -1,5 +1,6 @@
 use {
-	super::{Build, Tile},
+	super::Tile,
+	crate::Container,
 	serde::{Deserialize, Serialize},
 };
 
@@ -34,13 +35,13 @@ impl Coordinate {
 	///
 	/// * If `build` is [`None`], [`Self::get_from`] `grid`.
 	/// * If `build` is [`Some`], [`Tile::Block`].
-	pub fn get_from_build(
+	pub fn get_from_with_build(
 		&self,
 		grid: &[impl AsRef<[Tile]>],
-		build: Option<&Build>,
+		build: Option<&impl Container<Coordinate>>,
 	) -> Option<Tile> {
 		match build {
-			Some(b) if b.blocks.contains(&self) => Some(Tile::Block),
+			Some(b) if b.contains(&self) => Some(Tile::Block),
 			_ => self.get_from(grid),
 		}
 	}

@@ -1,4 +1,7 @@
-use super::{tileset::COORDINATE_ON_TILESET, Build, Coordinate, Tile};
+use {
+	super::{tileset::COORDINATE_ON_TILESET, Coordinate, Tile},
+	crate::Container,
+};
 
 /// # Summary
 ///
@@ -48,52 +51,6 @@ impl Adjacent<Coordinate> {
 	/// # Summary
 	///
 	/// Return [`Self::from_grid_coordinate`] but with blocked diagonals reflecteed from the build.
-	pub fn from_build_coordinate(
-		grid: &[impl AsRef<[Tile]>],
-		build: Option<&Build>,
-		coord: &Coordinate,
-	) -> Self {
-		let mut adjacent = Self::from_grid_coordinate(grid, coord);
-
-		let can_move = |direction: Option<Coordinate>| -> bool {
-			match direction {
-				Some(up) => up
-					.get_from_build(&grid, build)
-					.expect(COORDINATE_ON_TILESET)
-					.is_passable(),
-				_ => false,
-			}
-		};
-
-		let can_move_up = can_move(adjacent.up);
-		let can_move_right = can_move(adjacent.right);
-		let can_move_down = can_move(adjacent.down);
-		let can_move_left = can_move(adjacent.left);
-
-		/// # Summary
-		///
-		/// If `$cond` is `true`, then return `Some($value)`. Otherwise, return `None`.
-		///
-		/// # Remarks
-		///
-		/// We don't set it to `Impass` or `Block`, because `None`s are ignored by `for_each`.
-		/// Therefore we get a performance improvement.
-		macro_rules! if_then_none {
-			($($cond: expr)*, $field: ident) => {
-				if $(!$cond)&&* {
-					adjacent.$field = None;
-				}
-			};
-		}
-
-		if_then_none!(can_move_up can_move_right, up_right);
-		if_then_none!(can_move_down can_move_right, down_right);
-		if_then_none!(can_move_down can_move_left, down_left);
-		if_then_none!(can_move_up can_move_left, up_left);
-
-		adjacent
-	}
-
 	/// # Summary
 	///
 	/// Get the adjacent [`Coordinate`]s to a `coordinate` on an `array`.
@@ -140,6 +97,52 @@ impl Adjacent<Coordinate> {
 			),
 		}
 	}
+
+	pub fn from_grid_coordinate_with_build(
+		grid: &[impl AsRef<[Tile]>],
+		build: Option<&impl Container<Coordinate>>,
+		coord: &Coordinate,
+	) -> Self {
+		let mut adjacent = Self::from_grid_coordinate(grid, coord);
+
+		let can_move = |direction: Option<Coordinate>| -> bool {
+			match direction {
+				Some(up) => up
+					.get_from_with_build(&grid, build)
+					.expect(COORDINATE_ON_TILESET)
+					.is_passable(),
+				_ => false,
+			}
+		};
+
+		let can_move_up = can_move(adjacent.up);
+		let can_move_right = can_move(adjacent.right);
+		let can_move_down = can_move(adjacent.down);
+		let can_move_left = can_move(adjacent.left);
+
+		/// # Summary
+		///
+		/// If `$cond` is `true`, then return `Some($value)`. Otherwise, return `None`.
+		///
+		/// # Remarks
+		///
+		/// We don't set it to `Impass` or `Block`, because `None`s are ignored by `for_each`.
+		/// Therefore we get a performance improvement.
+		macro_rules! if_then_none {
+			($($cond: expr)*, $field: ident) => {
+				if $(!$cond)&&* {
+					adjacent.$field = None;
+				}
+			};
+		}
+
+		if_then_none!(can_move_up can_move_right, up_right);
+		if_then_none!(can_move_down can_move_right, down_right);
+		if_then_none!(can_move_down can_move_left, down_left);
+		if_then_none!(can_move_up can_move_left, up_left);
+
+		adjacent
+	}
 }
 
 #[cfg(test)]
@@ -170,7 +173,11 @@ mod tests {
 		};
 
 		let start = Instant::now();
-		let adjacent = Adjacent::from_build_coordinate(&ARRAY, Some(&build), &Coordinate(2, 2));
+		let adjacent = Adjacent::from_grid_coordinate_with_build(
+			&ARRAY,
+			Some(&build.blocks),
+			&Coordinate(2, 2),
+		);
 		println!(
 			"Adjacent::from_build_coordiante {}us",
 			Instant::now().duration_since(start).as_micros()

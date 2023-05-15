@@ -221,7 +221,6 @@ pub mod tests {
 				Coordinate(4, 2),
 				Coordinate(4, 3),
 				Coordinate(4, 4),
-				Coordinate(4, 5),
 			]
 			.iter()
 			.copied()

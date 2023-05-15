@@ -60,6 +60,11 @@ impl Path {
 
 			// Now that the current coordinate has been fully evaluated, mark it as visited.
 			visited.insert(coord, current_path);
+
+			// Using BFS, so if the `tile` is the `needle` we've found the shortest path.
+			if tile == needle {
+				break;
+			}
 		}
 
 		visited

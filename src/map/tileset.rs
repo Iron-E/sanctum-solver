@@ -320,7 +320,16 @@ mod tests {
 			vec![Impass, Impass, Impass, Impass, Impass], // 7
 		]);
 
+		let start = Instant::now();
 		let core_regions = test.separate_regions(Tile::Core).unwrap();
+		let impass_regions = test.separate_regions(Tile::Impass);
+		let spawn_regions = test.separate_regions(Tile::Spawn).unwrap();
+		println!(
+			"Tileset::separate_regions {}us",
+			Instant::now().duration_since(start).as_micros()
+		);
+
+		// Only one `core` region
 		assert_eq!(core_regions.len(), 1);
 		assert_eq!(
 			core_regions[0],
@@ -331,10 +340,9 @@ mod tests {
 		);
 
 		// Can't get a non-region.
-		let impass_regions = test.separate_regions(Tile::Impass);
 		assert!(impass_regions.is_err());
 
-		let spawn_regions = test.separate_regions(Tile::Spawn).unwrap();
+		// Two `spawn` regions
 		assert_eq!(spawn_regions.len(), 2);
 		assert_eq!(
 			spawn_regions[0],

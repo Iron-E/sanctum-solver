@@ -1,3 +1,5 @@
+#![allow(clippy::len_without_is_empty)]
+
 use {
 	super::{
 		tileset::{Tileset, COORDINATE_ON_TILESET},
@@ -21,17 +23,12 @@ pub struct ShortestPath(Vec<Coordinate>);
 impl ShortestPath {
 	/// # Summary
 	///
-	/// Returns the shorter [`ShortestPath`].
-	///
-	/// # Remarks
-	///
-	/// If paths are equally long, the current path is preferred.
-	fn return_shorter(self, other: Self) -> Self {
-		if self.len() > other.len() {
-			return other;
-		}
-
-		self
+	/// Return the [`Tile::Core`] which this [`ShortestPath`] navigates to.
+	pub fn core(&self) -> Coordinate {
+		*self
+			.0
+			.last()
+			.expect("Expected this `ShortestPath` to have at least 1 coordinate")
 	}
 
 	/// # Summary
@@ -144,6 +141,20 @@ impl ShortestPath {
 	/// The length of the path.
 	pub fn len(&self) -> usize {
 		self.0.len()
+	}
+
+	/// # Summary
+	///
+	/// Returns the shorter [`ShortestPath`].
+	///
+	/// # Remarks
+	///
+	/// If paths are equally long, the current path is preferred.
+	fn return_shorter(self, other: Self) -> Self {
+		if self.len() > other.len() {
+			return other;
+		}
+		self
 	}
 }
 

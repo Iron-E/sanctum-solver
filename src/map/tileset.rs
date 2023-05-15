@@ -72,8 +72,8 @@ impl Tileset {
 			if (start_tile.is_region() && tile == start_tile)
 				|| (tile.is_passable() && tile != needle)
 			{
-				Adjacent::<Coordinate>::from_grid_coordinate(&tileset, &coord)
-					.for_each(|adjacent| coordinate_queue.push_back(adjacent));
+				Adjacent::from_grid_coordinate(&tileset, &coord)
+					.for_each(|adjacent_coord| coordinate_queue.push_back(adjacent_coord));
 			}
 		}
 
@@ -128,8 +128,8 @@ impl Tileset {
 					// We shouldn't count a coordinate as 'visited' until we can extract its tile value.
 					visited.insert(coord);
 
-					Adjacent::<Coordinate>::from_grid_coordinate(&tileset, &coord)
-						.for_each(|adjacent| coordinate_queue.push_back(adjacent));
+					Adjacent::from_grid_coordinate(&tileset, &coord)
+						.for_each(|adjacent_coord| coordinate_queue.push_back(adjacent_coord));
 				}
 			}
 

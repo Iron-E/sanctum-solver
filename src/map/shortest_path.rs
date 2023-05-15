@@ -94,7 +94,7 @@ impl ShortestPath {
 		}
 
 		let mut coordinate_path_queue = LinkedList::new();
-		let mut visited = HashMap::<Coordinate, usize>::new();
+		let mut visited = HashMap::new();
 
 		coordinate_path_queue.push_back((start, vec![start]));
 
@@ -119,15 +119,13 @@ impl ShortestPath {
 			// Only keep looking beyond a passable tile, and if the current tile is not what we're
 			// searching for.
 			else if tile.is_passable() {
-				Adjacent::<Coordinate>::from_build_coordinate(&grid, build, &coord).for_each(
-					|adjacent| {
-						let mut new_path = Vec::with_capacity(current_path.len() + 1);
-						new_path.extend_from_slice(&current_path);
-						new_path.push(adjacent);
+				Adjacent::from_build_coordinate(&grid, build, &coord).for_each(|adjacent_coord| {
+					let mut new_path = Vec::with_capacity(current_path.len() + 1);
+					new_path.extend_from_slice(&current_path);
+					new_path.push(adjacent_coord);
 
-						coordinate_path_queue.push_back((adjacent, new_path))
-					},
-				);
+					coordinate_path_queue.push_back((adjacent_coord, new_path))
+				});
 			}
 
 			// Now that the current coordinate has been fully evaluated, mark it as visited.

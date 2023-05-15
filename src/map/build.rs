@@ -1,11 +1,17 @@
+mod temp_build;
+
 use {
 	super::{
 		tileset::{Tileset, COORDINATE_ON_TILESET},
 		Adjacent, Coordinate, ShortestPath, Tile,
 	},
-	rayon::iter::IntoParallelRefIterator,
+	crate::Container,
+	rayon::iter::{
+		IndexedParallelIterator, IntoParallelIterator, IntoParallelRefIterator, ParallelIterator,
+	},
 	serde::{Deserialize, Serialize},
 	std::collections::{BTreeMap, HashSet, LinkedList},
+	temp_build::TempBuild,
 };
 
 const VALID_BUILD: &str = "Expected build to produce shortest paths";
@@ -58,33 +64,42 @@ impl Build {
 				current_entrance
 			};
 
-			for coord in Vec::from(
+			if let Some((coord, _)) = Vec::from(
 				ShortestPath::from_any_grid_coordinate_to_tile(
 					&tileset.grid,
-					Some(&build),
+					Some(&build.blocks),
 					tileset.entrances_by_region[entrance].par_iter(),
 					Tile::Core,
 				)
 				.expect(VALID_BUILD),
 			)
-			.into_iter()
-			.rev()
+			.into_par_iter()
 			.filter(|coord| {
 				// We only want empty tiles
 				coord.get_from(&tileset.grid).expect(COORDINATE_ON_TILESET) == Tile::Empty
-			}) {
+			})
+			.map(|coord| {
 				// Test the build with the coordinate inserted.
+				(
+					coord,
+					ShortestPath::from_any_grid_coordinate_to_tile(
+						&tileset.grid,
+						Some(&TempBuild {
+							blocks: &build.blocks,
+							temp_block: coord,
+						}),
+						tileset.entrances_by_region[entrance].par_iter(),
+						Tile::Core,
+					),
+				)
+			})
+			.filter_map(|(coord, path)| path.and_then(|p| Some((coord, p))))
+			.max_by_key(|(_, path)| path.len())
+			{
 				build.blocks.insert(coord);
-
-				if build.is_valid_for(&tileset) {
-					build.try_remove_adjacent_to(&tileset, coord);
-					// Mark the block as having been placed.
-					placements += 1;
-					break;
-				}
-
-				// If it was invalid, take it back out.
-				build.blocks.remove(&coord);
+				build.try_remove_adjacent_to(&tileset, coord);
+				// Mark the block as having been placed.
+				placements += 1;
 			}
 		}
 
@@ -104,7 +119,7 @@ impl Build {
 		};
 
 		let mut shortest_paths_by_region: BTreeMap<_, _> =
-			ShortestPath::from_entrances_to_any_core(&tileset, None)
+			ShortestPath::from_entrances_to_any_core(&tileset, Option::<&HashSet<_>>::None)
 				.into_iter()
 				.enumerate()
 				.map(|(index, shortest_path)| (shortest_path.expect(VALID_BUILD), index))
@@ -126,7 +141,7 @@ impl Build {
 				() => {
 					ShortestPath::from_any_grid_coordinate_to_tile(
 						&tileset.grid,
-						Some(&build),
+						Some(&build.blocks),
 						tileset.entrances_by_region[region_index].par_iter(),
 						Tile::Core,
 					)
@@ -151,7 +166,7 @@ impl Build {
 				// Insert the coordinate into the build, just to test if it's valid in there.
 				build.blocks.insert(coord);
 
-				if build.is_valid_for(&tileset) {
+				if Build::is_valid(&tileset, &build.blocks) {
 					// If it's valid, recalculate the shortest path.
 					shortest_paths_by_region.insert(shortest_path!(), region_index);
 
@@ -171,23 +186,20 @@ impl Build {
 	/// # Summary
 	///
 	/// Return whether or not the current [`Build`] prevents any entrance from reaching a core.
-	fn is_valid_for(&self, tileset: &Tileset) -> bool {
+	fn is_valid(tileset: &Tileset, blocks: &impl Container<Coordinate>) -> bool {
 		// A valid build only contains coordinates which are for `Empty` tiles
-		self.blocks
-			.iter()
-			.all(|coord| coord.get_from(&tileset.grid).expect(COORDINATE_ON_TILESET) == Tile::Empty)
-			&& tileset.entrances_by_region.iter().all(|region| {
-				// Additionally, there should be at least one entrance in every region which has a path to a core.
-				region.iter().any(|entrance| {
-					ShortestPath::from_grid_coordinate_to_tile(
-						&tileset.grid,
-						Some(self),
-						*entrance,
-						Tile::Core,
-					)
-					.is_some()
-				})
+		tileset.entrances_by_region.iter().all(|region| {
+			// Additionally, there should be at least one entrance in every region which has a path to a core.
+			region.iter().any(|entrance| {
+				ShortestPath::from_grid_coordinate_to_tile(
+					&tileset.grid,
+					Some(blocks),
+					*entrance,
+					Tile::Core,
+				)
+				.is_some()
 			})
+		})
 	}
 
 	/// # Summary
@@ -217,7 +229,7 @@ impl Build {
 					if expected_shortest_paths.is_none() {
 						expected_shortest_paths = Some(ShortestPath::from_entrances_to_any_core(
 							&tileset,
-							Some(&self),
+							Some(&self.blocks),
 						));
 					}
 
@@ -254,7 +266,7 @@ impl Build {
 		// If the coordinate was removed (and therefore part of the build in the first place)
 		if self.blocks.remove(&coord) {
 			let actual_shortest_path =
-				ShortestPath::from_entrances_to_any_core(&tileset, Some(&self));
+				ShortestPath::from_entrances_to_any_core(&tileset, Some(&self.blocks));
 
 			// If it changed ANYTHING about the shortest paths
 			if &actual_shortest_path != expected_shortest_paths {
@@ -291,20 +303,18 @@ mod tests {
 		let start = Instant::now();
 
 		// Empty build should be valid for a valid Tileset.
-		assert!(Build {
-			blocks: HashSet::new()
-		}
-		.is_valid_for(&test_tileset));
+		assert!(Build::is_valid(&test_tileset, &HashSet::new()));
 
 		// Valid build for valid tileset.
-		assert!(Build {
-			blocks: [Coordinate(4, 1)].iter().copied().collect()
-		}
-		.is_valid_for(&test_tileset));
+		assert!(Build::is_valid(
+			&test_tileset,
+			&[Coordinate(4, 1)].iter().copied().collect::<HashSet<_>>()
+		));
 
 		// Invalid build for valid tileset (because of no path)
-		assert!(!Build {
-			blocks: [
+		assert!(!Build::is_valid(
+			&test_tileset,
+			&[
 				Coordinate(4, 1),
 				Coordinate(5, 2),
 				Coordinate(5, 3),
@@ -314,19 +324,12 @@ mod tests {
 			]
 			.iter()
 			.copied()
-			.collect()
-		}
-		.is_valid_for(&test_tileset));
-
-		// Invalid build for valid tileset (because of invalid block placement).
-		assert!(!Build {
-			blocks: [Coordinate(0, 1)].iter().copied().collect()
-		}
-		.is_valid_for(&test_tileset));
+			.collect::<HashSet<_>>(),
+		));
 
 		println!(
-			"Build::is_valid_for {}us",
-			Instant::now().duration_since(start).as_micros() / 4
+			"Build::is_valid {}us",
+			Instant::now().duration_since(start).as_micros() / 3
 		);
 	}
 }

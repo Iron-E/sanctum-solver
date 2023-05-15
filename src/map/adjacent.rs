@@ -105,20 +105,25 @@ impl Adjacent<Coordinate> {
 	) -> Self {
 		let mut adjacent = Self::from_grid_coordinate(grid, coord);
 
-		let can_move = |direction: Option<Coordinate>| -> bool {
-			direction
-				.map(|d| {
-					d.get_from_with_build(&grid, build)
-						.expect(COORDINATE_ON_TILESET)
-						.is_passable()
-				})
-				.unwrap_or(false)
-		};
+		/// # Summary
+		///
+		/// Determine if the `$direction` can be moved to.
+		macro_rules! can_move_to {
+			($direction: expr) => {
+				$direction
+					.map(|d| {
+						d.get_from_with_build(&grid, build)
+							.expect(COORDINATE_ON_TILESET)
+							.is_passable()
+					})
+					.unwrap_or(false)
+			};
+		}
 
-		let can_move_up = can_move(adjacent.up);
-		let can_move_right = can_move(adjacent.right);
-		let can_move_down = can_move(adjacent.down);
-		let can_move_left = can_move(adjacent.left);
+		let can_move_up = can_move_to!(adjacent.up);
+		let can_move_right = can_move_to!(adjacent.right);
+		let can_move_down = can_move_to!(adjacent.down);
+		let can_move_left = can_move_to!(adjacent.left);
 
 		/// # Summary
 		///

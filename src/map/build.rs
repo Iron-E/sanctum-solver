@@ -34,9 +34,56 @@ impl Build {
 
 	/// # Summary
 	///
+	/// Finds a [valid][valid] [block][block] placement closest to the [`Tile::Core`].
+	///
+	/// # Parameters
+	///
+	/// * `tileset`, the [`Tileset`] this [block][block] is being placed on.
+	/// * `blocks`, the previously placed [block][block]s.
+	/// * `shortest_path`, the current shortest path through the `blocks`.
+	///
+	/// # Returns
+	///
+	/// * `None`, if no block can be placed along `shortest_path`.
+	/// * `Some(Coordinate)`, detailing where a block can be placed which is still [valid][valid].
+	///
+	/// [block]: Tile::Block
+	/// [valid]: Build::is_valid
+	pub fn find_valid_block_placement(
+		tileset: &Tileset,
+		blocks: &impl Container<Coordinate>,
+		shortest_path: Vec<Coordinate>,
+	) -> Option<Coordinate> {
+		shortest_path
+			.into_iter()
+			.rev()
+			.find(|coord| {
+				// We only want empty tiles
+				coord.get_from(&tileset.grid).expect(COORDINATE_ON_TILESET) == Tile::Empty
+					&& Build::is_valid(
+						&tileset,
+						&TempBuild {
+							blocks,
+							temp_block: *coord,
+						},
+					)
+			})
+	}
+
+	/// # Summary
+	///
 	/// Get the longest build for a specific `tileset` by using round-robin on all of the spawn
 	/// regions.
-	pub fn from_entrances_to_any_core(tileset: &Tileset, diagonals: bool, max_blocks: Option<usize>) -> Self {
+	///
+	/// # Parameters
+	///
+	/// * `diagonals`, whether to use diagonal movement.
+	/// * `max_blocks`, the maximum number of blocks to place.
+	pub fn from_entrances_to_any_core(
+		tileset: &Tileset,
+		diagonals: bool,
+		max_blocks: Option<usize>,
+	) -> Self {
 		let mut build = Build {
 			blocks: HashSet::new(),
 		};
@@ -44,10 +91,10 @@ impl Build {
 		let mut current_entrance = 0;
 		let mut placements = 1;
 
-		while match max_blocks {
-			Some(max) => max > build.blocks.len(),
-			_ => true,
-		} {
+		while max_blocks
+			.map(|max| max > build.blocks.len())
+			.unwrap_or(true)
+		{
 			let entrance = {
 				// If we're still iterating over the number of entrances
 				if current_entrance < tileset.entrances_by_region.len() - 1 {
@@ -62,7 +109,9 @@ impl Build {
 				current_entrance
 			};
 
-			for coord in Vec::from(
+			if let Some(coord) = Build::find_valid_block_placement(
+				tileset,
+				&build.blocks,
 				ShortestPath::from_any_grid_coordinate_to_tile(
 					&tileset.grid,
 					Some(&build.blocks),
@@ -70,31 +119,16 @@ impl Build {
 					Tile::Core,
 					diagonals,
 				)
-				.expect(VALID_BUILD),
-			)
-			.into_iter()
-			.rev()
-			.filter(|coord| {
-				// We only want empty tiles
-				coord.get_from(&tileset.grid).expect(COORDINATE_ON_TILESET) == Tile::Empty
-			}) {
+				.expect(VALID_BUILD)
+				.into(),
+			) {
 				// Test the build with the coordinate inserted.
-				if Build::is_valid(
-					&tileset,
-					&TempBuild {
-						blocks: &build.blocks,
-						temp_block: coord,
-					},
-				) {
-					// Insert the coord now that we know it is valid.
-					build.blocks.insert(coord);
-					build.try_remove_adjacent_to(&tileset, coord, diagonals);
+				// Insert the coord now that we know it is valid.
+				build.blocks.insert(coord);
+				build.try_remove_adjacent_to(&tileset, coord, diagonals);
 
-					// Mark the block as having been placed.
-					placements += 1;
-
-					break;
-				}
+				// Mark the block as having been placed.
+				placements += 1;
 			}
 		}
 
@@ -115,18 +149,22 @@ impl Build {
 		};
 
 		let mut shortest_paths_by_region: BTreeMap<_, _> =
-			ShortestPath::from_entrances_to_any_core(&tileset, Option::<&HashSet<_>>::None, diagonals)
-				.into_iter()
-				.enumerate()
-				.map(|(index, shortest_path)| (shortest_path.expect(VALID_BUILD), index))
-				.collect();
+			ShortestPath::from_entrances_to_any_core(
+				&tileset,
+				Option::<&HashSet<_>>::None,
+				diagonals,
+			)
+			.into_iter()
+			.enumerate()
+			.map(|(index, shortest_path)| (shortest_path.expect(VALID_BUILD), index))
+			.collect();
 
 		while let Some((shortest_path, region_index)) = shortest_paths_by_region.pop_first() {
 			// Make sure we have less than the maximum blocks.
-			if match max_blocks {
-				Some(max) => build.blocks.len() >= max,
-				_ => false,
-			} {
+			if max_blocks
+				.map(|max| build.blocks.len() >= max)
+				.unwrap_or(false)
+			{
 				break;
 			}
 
@@ -157,25 +195,15 @@ impl Build {
 				continue;
 			}
 
-			for coord in shortest_path_vec.into_iter().rev().filter(|coord| {
-				coord.get_from(&tileset.grid).expect(COORDINATE_ON_TILESET) == Tile::Empty
-			}) {
-				if Build::is_valid(
-					&tileset,
-					&TempBuild {
-						blocks: &build.blocks,
-						temp_block: coord,
-					},
-				) {
-					// It was valid, so insert it.
-					build.blocks.insert(coord);
-					build.try_remove_adjacent_to(&tileset, coord, diagonals);
+			if let Some(coord) =
+				Build::find_valid_block_placement(tileset, &build.blocks, shortest_path_vec)
+			{
+				// It was valid, so insert it.
+				build.blocks.insert(coord);
+				build.try_remove_adjacent_to(&tileset, coord, diagonals);
 
-					// Recalculate the shortest path as well.
-					shortest_paths_by_region.insert(shortest_path!(), region_index);
-
-					break;
-				}
+				// Recalculate the shortest path as well.
+				shortest_paths_by_region.insert(shortest_path!(), region_index);
 			}
 		}
 
@@ -217,7 +245,11 @@ impl Build {
 
 		// Queue of `Adjacent`s we want to try.
 		let mut adjacent_queue = LinkedList::new();
-		adjacent_queue.push_back(Adjacent::from_grid_coordinate(&tileset.grid, &coord, diagonals));
+		adjacent_queue.push_back(Adjacent::from_grid_coordinate(
+			&tileset.grid,
+			&coord,
+			diagonals,
+		));
 
 		while let Some(adjacent) = adjacent_queue.pop_front() {
 			adjacent.for_each(|adjacent_coord| {
@@ -263,7 +295,7 @@ impl Build {
 	fn try_remove_coord(
 		&mut self,
 		tileset: &Tileset,
-		expected_shortest_paths: &Vec<Option<ShortestPath>>,
+		expected_shortest_paths: &[Option<ShortestPath>],
 		coord: Coordinate,
 		diagonals: bool,
 	) -> bool {
@@ -273,7 +305,7 @@ impl Build {
 				ShortestPath::from_entrances_to_any_core(&tileset, Some(&self.blocks), diagonals);
 
 			// If it changed ANYTHING about the shortest paths
-			if &actual_shortest_path != expected_shortest_paths {
+			if actual_shortest_path != expected_shortest_paths {
 				self.blocks.insert(coord);
 				return false;
 			}

@@ -8,9 +8,9 @@ use {
 	std::collections::{HashMap, HashSet},
 };
 
-const COORDINATE_ON_TILESET: &str = "Expected to visit coordinate which exists on tileset.";
+pub const COORDINATE_ON_TILESET: &str = "Expected to visit coordinate which exists on tileset.";
 const IS_REGION: &str = "Expected to separate tiles which are regions.";
-const REGION_HAS_COORDINATE: &str = "Expected the region to have at least one coordinate.";
+pub const REGION_HAS_COORDINATE: &str = "Expected the region to have at least one coordinate.";
 
 /// # Summary
 ///
@@ -93,75 +93,6 @@ impl Tileset {
 
 	/// # Summary
 	///
-	/// Get the [`Tile`] of `needle`'s type which is nearest to the `start`ing [`Coordinate`].
-	///
-	/// # Remarks
-	///
-	/// If multiple candidates are found to be of the same distance, they will all be returned.
-	fn get_nearest(&self, start: Coordinate, needle: Tile) -> Result<HashSet<Coordinate>> {
-		let start_tile = start.get_from(&self.0).expect(COORDINATE_ON_TILESET);
-
-		// We don't want to start the search on a tile which cannot be walked over.
-		// This is to prevent accidentally crossing over the other side of a barrier.
-		if !start_tile.is_passable() {
-			return Err(Error::CannotPass { tile: start_tile });
-		}
-
-		let mut coordinate_distance_queue = vec![(start, 0)];
-		let mut visited = HashMap::new();
-
-		while let Some((coord, distance)) = coordinate_distance_queue.pop() {
-			// Don't revisit a coordinate we've already been to.
-			if match visited.get(&coord) {
-				Some(d) => d > &distance,
-				_ => false,
-			} {
-				continue;
-			}
-
-			// All of the coord_distanceinates from `select` should exist in the `tileset`.
-			let tile = coord.get_from(&self.0).expect(COORDINATE_ON_TILESET);
-
-			// We shouldn't count a coord_distanceinate as 'visited' until we can extract its tile value.
-			visited.insert(coord, distance);
-
-			// These are the tiles which we want to keep looking beyond.
-			if tile.is_passable() && tile != needle {
-				Adjacent::<Coordinate>::from_array_coordinate(&self.0, &coord)
-					.for_each(|adjacent| coordinate_distance_queue.push((adjacent, distance + 1)));
-			}
-		}
-
-		let shortest_distance = match visited
-			.iter()
-			.filter(|(c, _)| c.get_from(&self.0).expect(COORDINATE_ON_TILESET) == needle)
-			.reduce(|visit, other_visit| {
-				if visit.1 > other_visit.1 {
-					other_visit
-				} else {
-					visit
-				}
-			}) {
-			Some(visit) => *visit.1,
-			_ => return Ok(HashSet::new()),
-		};
-
-		Ok(visited
-			.into_iter()
-			.filter_map(|(c, d)| {
-				if d == shortest_distance
-					&& c.get_from(&self.0).expect(COORDINATE_ON_TILESET) == needle
-				{
-					Some(c)
-				} else {
-					None
-				}
-			})
-			.collect())
-	}
-
-	/// # Summary
-	///
 	/// Get all of the different regions for some type of `tile`.
 	fn separate_regions(&self, start_tile: Tile) -> Result<Vec<HashSet<Coordinate>>> {
 		if !start_tile.is_region() {
@@ -213,7 +144,7 @@ impl Tileset {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
 	use {
 		super::{Coordinate, Tile, Tile::*, Tileset},
 		std::time::Instant,
@@ -223,7 +154,7 @@ mod tests {
 	///
 	/// A representation of the map _Park_ from _Sanctum 2_.
 	#[rustfmt::skip]
-	const PARK: [[Tile; 16]; 14] = [
+	pub const PARK: [[Tile; 16]; 14] = [
 		// 0     1       2       3       4       5       6       7       8       9       10      11      12     13     14      15
 		[Impass, Impass, Impass, Impass, Impass, Impass, Impass, Impass, Impass, Impass, Impass, Empty,  Empty, Empty, Empty,  Empty], // 0
 		[Pass,   Pass,   Pass,   Pass,   Empty,  Empty,  Empty,  Empty,  Empty,  Impass, Impass, Empty,  Empty, Empty, Empty,  Empty], // 1
@@ -241,16 +172,38 @@ mod tests {
 		[Impass, Impass, Impass, Impass, Pass,   Pass,   Pass,   Pass,   Empty,  Empty,  Empty,  Empty,  Empty, Empty, Empty,  Empty], // 13
 	];
 
+	/// # Summary
+	///
+	/// A representation of the map _Park_ from _Sanctum 2_.
+	#[rustfmt::skip]
+	pub const PARK_TWO_SPAWN: [[Tile; 16]; 14] = [
+		// 0     1       2       3       4       5       6       7       8       9       10      11      12     13     14      15
+		[Impass, Impass, Impass, Impass, Impass, Impass, Impass, Impass, Impass, Impass, Impass, Empty,  Empty, Empty, Empty,  Empty], // 0
+		[Pass,   Pass,   Pass,   Pass,   Empty,  Empty,  Empty,  Empty,  Empty,  Impass, Impass, Empty,  Empty, Empty, Empty,  Empty], // 1
+		[Spawn,  Pass,   Pass,   Pass,   Empty,  Empty,  Empty,  Empty,  Empty,  Impass, Impass, Empty,  Empty, Empty, Empty,  Empty], // 2
+		[Pass,   Pass,   Pass,   Pass,   Empty,  Empty,  Empty,  Empty,  Empty,  Empty,  Empty,  Empty,  Empty, Empty, Empty,  Empty], // 3
+		[Pass,   Pass,   Pass,   Pass,   Empty,  Empty,  Empty,  Empty,  Empty,  Empty,  Empty,  Empty,  Empty, Empty, Empty,  Empty], // 4
+		[Impass, Impass, Impass, Impass, Empty,  Empty,  Empty,  Empty,  Empty,  Empty,  Empty,  Empty,  Empty, Empty, Empty,  Spawn], // 5
+		[Impass, Impass, Impass, Impass, Empty,  Empty,  Empty,  Empty,  Empty,  Empty,  Empty,  Empty,  Empty, Empty, Empty,  Empty], // 6
+		[Impass, Impass, Impass, Impass, Empty,  Empty,  Empty,  Empty,  Empty,  Empty,  Empty,  Empty,  Empty, Empty, Empty,  Empty], // 7
+		[Impass, Impass, Impass, Impass, Empty,  Empty,  Empty,  Empty,  Empty,  Empty,  Empty,  Empty,  Empty, Empty, Empty,  Empty], // 8
+		[Impass, Impass, Impass, Impass, Empty,  Empty,  Empty,  Empty,  Empty,  Empty,  Empty,  Empty,  Empty, Empty, Impass, Empty], // 9
+		[Impass, Impass, Impass, Impass, Pass,   Pass,   Pass,   Pass,   Empty,  Empty,  Empty,  Empty,  Empty, Empty, Empty,  Empty], // 10
+		[Impass, Impass, Impass, Impass, Pass,   Core,   Core,   Pass,   Empty,  Empty,  Empty,  Empty,  Empty, Empty, Empty,  Empty], // 11
+		[Impass, Impass, Impass, Impass, Pass,   Core,   Core,   Pass,   Empty,  Empty,  Empty,  Impass, Empty, Empty, Empty,  Empty], // 12
+		[Impass, Impass, Impass, Impass, Pass,   Pass,   Pass,   Pass,   Empty,  Empty,  Empty,  Empty,  Empty, Empty, Empty,  Empty], // 13
+	];
+
 	#[test]
 	fn entrances() {
-		let park = Tileset(
+		let test = Tileset(
 			PARK.iter()
 				.map(|row| row.iter().copied().collect())
 				.collect(),
 		);
 
 		let start = Instant::now();
-		let entrances = park.entrances();
+		let entrances = test.entrances();
 		println!(
 			"Tileset::entrances {}us",
 			Instant::now().duration_since(start).as_micros()
@@ -273,14 +226,14 @@ mod tests {
 
 	#[test]
 	fn exits() {
-		let park = Tileset(
+		let test = Tileset(
 			PARK.iter()
 				.map(|row| row.iter().copied().collect())
 				.collect(),
 		);
 
 		let start = Instant::now();
-		let exits = park.exits();
+		let exits = test.exits();
 		println!(
 			"Tileset::exits {}us",
 			Instant::now().duration_since(start).as_micros()
@@ -307,56 +260,48 @@ mod tests {
 
 	#[test]
 	fn separate_regions() {
-		#[rustfmt::skip]
-		let test = Tileset(vec![
-			//   0       1       2       3       4
-			vec![Impass, Impass, Impass, Impass, Impass], // 0
-			vec![Impass, Empty,  Empty,  Spawn,  Impass], // 1
-			vec![Impass, Empty,  Empty,  Spawn,  Impass], // 2
-			vec![Impass, Empty,  Empty,  Empty,  Impass], // 3
-			vec![Impass, Empty,  Empty,  Empty,  Impass], // 4
-			vec![Impass, Spawn,  Empty,  Core,   Impass], // 5
-			vec![Impass, Spawn,  Empty,  Core,   Impass], // 6
-			vec![Impass, Impass, Impass, Impass, Impass], // 7
-		]);
+		let test = Tileset(
+			PARK_TWO_SPAWN
+				.iter()
+				.map(|row| row.iter().copied().collect())
+				.collect(),
+		);
 
 		let start = Instant::now();
 		let core_regions = test.separate_regions(Tile::Core).unwrap();
-		let impass_regions = test.separate_regions(Tile::Impass);
 		let spawn_regions = test.separate_regions(Tile::Spawn).unwrap();
 		println!(
 			"Tileset::separate_regions {}us",
-			Instant::now().duration_since(start).as_micros()
+			Instant::now().duration_since(start).as_micros() / 2
 		);
 
 		// Only one `core` region
 		assert_eq!(core_regions.len(), 1);
 		assert_eq!(
 			core_regions[0],
-			[Coordinate(3, 5), Coordinate(3, 6)]
-				.iter()
-				.copied()
-				.collect()
+			[
+				Coordinate(5, 11),
+				Coordinate(5, 12),
+				Coordinate(6, 11),
+				Coordinate(6, 12)
+			]
+			.iter()
+			.copied()
+			.collect()
 		);
 
 		// Can't get a non-region.
-		assert!(impass_regions.is_err());
+		assert!(test.separate_regions(Tile::Impass).is_err());
 
 		// Two `spawn` regions
 		assert_eq!(spawn_regions.len(), 2);
 		assert_eq!(
 			spawn_regions[0],
-			[Coordinate(3, 1), Coordinate(3, 2)]
-				.iter()
-				.copied()
-				.collect()
+			[Coordinate(0, 2)].iter().copied().collect()
 		);
 		assert_eq!(
 			spawn_regions[1],
-			[Coordinate(1, 5), Coordinate(1, 6)]
-				.iter()
-				.copied()
-				.collect()
+			[Coordinate(15, 5)].iter().copied().collect()
 		);
 	}
 }

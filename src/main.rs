@@ -1,5 +1,3 @@
-#![feature(map_first_last)]
-
 mod app;
 mod container;
 mod map;

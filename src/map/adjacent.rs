@@ -169,42 +169,6 @@ mod tests {
 	];
 
 	#[test]
-	fn from_build_coordinate() {
-		let build = Build {
-			blocks: [Coordinate(2, 1), Coordinate(3, 2)]
-				.iter()
-				.copied()
-				.collect(),
-		};
-
-		let start = Instant::now();
-		let adjacent = Adjacent::from_grid_coordinate_with_build(
-			&ARRAY,
-			Some(&build.blocks),
-			&Coordinate(2, 2),
-		);
-		println!(
-			"Adjacent::from_build_coordiante {}us",
-			Instant::now().duration_since(start).as_micros()
-		);
-
-		assert_eq!(
-			adjacent,
-			Adjacent {
-				up: Some(Coordinate(2, 1)),
-				right: Some(Coordinate(3, 2)),
-				down: Some(Coordinate(2, 3)),
-				left: Some(Coordinate(1, 2)),
-
-				up_right: None,
-				down_right: Some(Coordinate(3, 3)),
-				down_left: Some(Coordinate(1, 3)),
-				up_left: None,
-			},
-		);
-	}
-
-	#[test]
 	fn from_grid_coordinate() {
 		let start = Instant::now();
 
@@ -288,6 +252,42 @@ mod tests {
 		println!(
 			"Adjacent::from_grid_coordinate {}us",
 			Instant::now().duration_since(start).as_micros() / 6
+		);
+	}
+
+	#[test]
+	fn from_grid_coordinate_with_build() {
+		let build = Build {
+			blocks: [Coordinate(2, 1), Coordinate(3, 2)]
+				.iter()
+				.copied()
+				.collect(),
+		};
+
+		let start = Instant::now();
+		let adjacent = Adjacent::from_grid_coordinate_with_build(
+			&ARRAY,
+			Some(&build.blocks),
+			&Coordinate(2, 2),
+		);
+		println!(
+			"Adjacent::from_grid_coordinate_with_build {}us",
+			Instant::now().duration_since(start).as_micros()
+		);
+
+		assert_eq!(
+			adjacent,
+			Adjacent {
+				up: Some(Coordinate(2, 1)),
+				right: Some(Coordinate(3, 2)),
+				down: Some(Coordinate(2, 3)),
+				left: Some(Coordinate(1, 2)),
+
+				up_right: None,
+				down_right: Some(Coordinate(3, 3)),
+				down_left: Some(Coordinate(1, 3)),
+				up_left: None,
+			},
 		);
 	}
 }

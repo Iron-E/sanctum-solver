@@ -1,6 +1,6 @@
 # See https://doc.rust-lang.org/cargo/reference/manifest.html
 [package]
-name = "sanctum-solver"
+name = "sanctum_solver"
 version = "0.1.0"
 authors = ["AllMyJokesArgon"]
 description = "Find the most efficient build for a Sanctum map."

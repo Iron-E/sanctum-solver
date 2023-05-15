@@ -25,7 +25,7 @@ impl ShortestPath {
 	///
 	/// If paths are equally long, the current path is preferred.
 	fn return_shorter(self, other: Self) -> Self {
-		if self.0.len() > other.0.len() {
+		if self.len() > other.len() {
 			return other;
 		}
 
@@ -136,6 +136,13 @@ impl ShortestPath {
 
 		None
 	}
+
+	/// # Summary
+	///
+	/// The length of the path.
+	pub fn len(&self) -> usize {
+		self.0.len()
+	}
 }
 
 impl From<ShortestPath> for Vec<Coordinate> {
@@ -146,13 +153,13 @@ impl From<ShortestPath> for Vec<Coordinate> {
 
 impl Ord for ShortestPath {
 	fn cmp(&self, other: &Self) -> Ordering {
-		self.0.len().cmp(&other.0.len())
+		self.len().cmp(&other.len())
 	}
 }
 
 impl PartialOrd for ShortestPath {
 	fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-		self.0.len().partial_cmp(&other.0.len())
+		self.len().partial_cmp(&other.len())
 	}
 }
 
@@ -167,7 +174,7 @@ mod tests {
 	fn assertion(tileset: &Tileset, paths: &[ShortestPath], index: usize, desired_len: usize) {
 		// Since there may be multiple ways to do this we aren't going to test it
 		// directly, rather we're going to assert things about the path instead.
-		assert_eq!(paths[index].0.len(), desired_len);
+		assert_eq!(paths[index].len(), desired_len);
 		assert!(paths[index].0[0..(desired_len - 1)]
 			.iter()
 			.all(|coord| coord

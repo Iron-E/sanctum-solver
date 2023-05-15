@@ -154,10 +154,11 @@ mod tests {
 				.map(|row| row.iter().copied().collect())
 				.collect(),
 		);
+		let spawn_region_entrances = test_tileset.entrances();
+		let number_of_regions = spawn_region_entrances.len();
 
 		let start = Instant::now();
-		let test_paths: Vec<_> = test_tileset
-			.entrances()
+		let test_paths: Vec<_> = spawn_region_entrances
 			.into_iter()
 			.map(|entrances| {
 				Path::from_entrances_or_exits(&test_tileset, &entrances).expect(PATH_HAS_COORDINATE)
@@ -165,7 +166,7 @@ mod tests {
 			.collect();
 		println!(
 			"Path::from_entrances_or_exits {}us",
-			Instant::now().duration_since(start).as_micros()
+			Instant::now().duration_since(start).as_micros() / (number_of_regions as u128)
 		);
 
 		// There should be two paths to the core since there are two spawn points.

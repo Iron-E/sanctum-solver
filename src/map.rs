@@ -11,8 +11,11 @@ use {
 	tileset::Tileset,
 };
 
-#[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-pub struct Map {
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct Map<A>
+where
+	A: AsRef<[Tile]>,
+{
 	pub name: String,
-	pub tileset: Tileset,
+	pub tileset: Tileset<A>,
 }

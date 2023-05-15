@@ -1,7 +1,7 @@
 mod error;
 
 use {
-	crate::map::Map,
+	crate::map::{Map, Tile},
 	error::Result,
 	std::{fs, path::PathBuf},
 	structopt::StructOpt,
@@ -22,7 +22,7 @@ impl App {
 	///
 	/// Run the application and parse its provided arguments / flags.
 	pub fn run(self) -> Result<()> {
-		let map: Map = serde_json::from_slice(&fs::read(self.map_json)?)?;
+		let map: Map<Vec<Tile>> = serde_json::from_slice(&fs::read(self.map_json)?)?;
 
 		todo!()
 	}

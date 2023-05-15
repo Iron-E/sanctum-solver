@@ -4,7 +4,7 @@ use {
 		Adjacent, Coordinate, Tile,
 	},
 	serde::{Deserialize, Serialize},
-	std::collections::{HashMap, LinkedList},
+	std::collections::{HashMap, HashSet, LinkedList},
 };
 
 pub const PATH_EXISTS: &str = "Expected path to have at least one coordinate.";
@@ -48,12 +48,13 @@ impl Path {
 	/// * `Some(Path)` if there is a [`Path`].
 	/// * `None` if there is no [`Path`].
 	pub fn shortest_from_any_to<'coord>(
-		tileset: &Tileset,
-		coordinates: impl Iterator<Item = &'coord Coordinate>,
-		needle: Tile,
-	) -> Option<Self> {
-		coordinates
-			.map(|coord| Path::shortest_from_coordinate_to(tileset, *coord, needle))
+		tileset: &Tileset<impl AsRef<[Tile]>>,
+		start_points: impl Iterator<Item = &'coord Coordinate>,
+		end_points: &HashSet<Coordinate>,
+	) -> Option<Self>
+	{
+		start_points
+			.map(|coord| Path::shortest_from_coordinate_to(tileset, *coord, &end_points))
 			.flatten()
 			.reduce(Path::return_shorter)
 	}
@@ -62,11 +63,12 @@ impl Path {
 	///
 	/// Get the shortest [`Path`] to a [`Tile`] of `needle`'s type from some `start`ing [`Coordinate`] on a `tileset`.
 	pub fn shortest_from_coordinate_to(
-		tileset: &Tileset,
+		tileset: &Tileset<impl AsRef<[Tile]>>,
 		start: Coordinate,
-		needle: Tile,
-	) -> Option<Self> {
-		let start_tile = start.get_from(&tileset.0).expect(COORDINATE_ON_TILESET);
+		end_points: &HashSet<Coordinate>,
+	) -> Option<Self>
+	{
+		let start_tile = start.get_from(&tileset.grid).expect(COORDINATE_ON_TILESET);
 
 		// We don't want to start the search on a tile which cannot be walked over.
 		// This is to prevent accidentally crossing over the other side of a barrier.
@@ -89,12 +91,16 @@ impl Path {
 				continue;
 			}
 
-			let tile = coord.get_from(&tileset.0).expect(COORDINATE_ON_TILESET);
+			let tile = coord.get_from(&tileset.grid).expect(COORDINATE_ON_TILESET);
 
+			// Using BFS, so if the `tile` is the `needle` we've found the shortest path.
+			if end_points.contains(&coord) {
+				return Some(Path(current_path));
+			}
 			// Only keep looking beyond a passable tile, and if the current tile is not what we're
 			// searching for.
-			if tile.is_passable() && tile != needle {
-				Adjacent::<Coordinate>::from_array_coordinate(&tileset.0, &coord).for_each(
+			else if tile.is_passable() {
+				Adjacent::<Coordinate>::from_array_coordinate(&tileset.grid, &coord).for_each(
 					|adjacent| {
 						let mut new_path = Vec::with_capacity(current_path.len() + 1);
 						new_path.extend_from_slice(&current_path);
@@ -104,10 +110,6 @@ impl Path {
 					},
 				);
 			}
-			// Using BFS, so if the `tile` is the `needle` we've found the shortest path.
-			else if tile == needle {
-				return Some(Path(current_path));
-			}
 
 			// Now that the current coordinate has been fully evaluated, mark it as visited.
 			visited.insert(coord, current_path);
@@ -115,90 +117,107 @@ impl Path {
 
 		None
 	}
+
+	/// # Summary
+	///
+	/// Get the [`Path`]s from all [`Tileset::entrances`] to any [`Tileset::exits`].
+	pub fn shortest_from_entrances_to_any_exit(tileset: &Tileset<impl AsRef<[Tile]>>) -> Vec<Option<Self>>
+	{
+		tileset
+			.entrances
+			.iter()
+			.map(|entrances| Path::shortest_from_any_to(&tileset, entrances.iter(), &tileset.exits))
+			.collect()
+	}
 }
 
 #[cfg(test)]
 mod tests {
 	use {
-		super::{Coordinate, Path, Tile, Tileset, COORDINATE_ON_TILESET, PATH_EXISTS},
+		super::{Coordinate, Path, Tile, Tileset, COORDINATE_ON_TILESET},
 		crate::map::tileset::tests::{PARK, PARK_TWO_SPAWN},
 		std::time::Instant,
 	};
 
-	#[test]
-	fn shortest_from_coordinate_to() {
-		let test_tileset = Tileset(
-			PARK.iter()
-				.map(|row| row.iter().copied().collect())
-				.collect(),
-		);
-
-		let start = Instant::now();
-		let test_path =
-			Path::shortest_from_coordinate_to(&test_tileset, Coordinate(4, 4), Tile::Core).unwrap();
-		println!(
-			"Path::shortest_from_coordinate_to {}us",
-			Instant::now().duration_since(start).as_micros()
-		);
-
-		assert_eq!(test_path.0.len(), 9);
-		assert!(test_path.0[..8].into_iter().all(|coord| coord
-			.get_from(&test_tileset.0)
-			.expect(COORDINATE_ON_TILESET)
-			.is_passable()));
-		assert!(test_path.0[8]
-			.get_from(&test_tileset.0)
-			.expect(COORDINATE_ON_TILESET)
-			.is_region());
+	fn assertion(tileset: &Tileset<impl AsRef<[Tile]>>, paths: &[Path], index: usize, desired_len: usize) {
+		// Since there may be multiple ways to do this we aren't going to test it
+		// directly, rather we're going to assert things about the path instead.
+		assert_eq!(paths[index].0.len(), desired_len);
+		assert!(paths[index].0
+			.iter()
+			.all(|coord| coord
+				.get_from(&tileset.grid)
+				.expect(COORDINATE_ON_TILESET)
+				.is_passable()));
 	}
 
 	#[test]
-	fn from_entrances_or_exits() {
-		let test_tileset = Tileset(
-			PARK_TWO_SPAWN
-				.iter()
-				.map(|row| row.iter().copied().collect())
-				.collect(),
-		);
-		let spawn_region_entrances = test_tileset.entrances();
-		let number_of_regions = spawn_region_entrances.len();
+	fn shortest_from_any_to() {
+		let test_tileset = Tileset::new(PARK_TWO_SPAWN.iter().collect());
 
 		let start = Instant::now();
-		let test_paths: Vec<_> = spawn_region_entrances
-			.into_iter()
-			.map(|entrances| {
-				Path::shortest_from_any_to(&test_tileset, entrances.iter(), Tile::Core)
-					.expect(PATH_EXISTS)
-			})
+		let test_paths: Vec<_> = test_tileset
+			.entrances
+			.iter()
+			.map(|entrances| Path::shortest_from_any_to(&test_tileset, entrances.iter(), &test_tileset.exits))
+			.flatten()
 			.collect();
 		println!(
 			"Path::shortest_from_any_to {}us",
-			Instant::now().duration_since(start).as_micros() / (number_of_regions as u128)
+			Instant::now().duration_since(start).as_micros()
+				/ (test_tileset.entrances.len() as u128)
 		);
 
 		// There should be two paths to the core since there are two spawn points.
 		assert_eq!(test_paths.len(), 2);
 
-		let assertion = |index: usize, desired_len: usize| {
-			// Since there may be multiple ways to do this we aren't going to test it
-			// directly, rather we're going to assert things about the path instead.
-			assert_eq!(test_paths[index].0.len(), desired_len);
-			assert!(test_paths[index].0[..(desired_len - 1)]
-				.into_iter()
-				.all(|coord| coord
-					.get_from(&test_tileset.0)
-					.expect(COORDINATE_ON_TILESET)
-					.is_passable()));
-			assert!(test_paths[index].0[desired_len - 1]
-				.get_from(&test_tileset.0)
-				.expect(COORDINATE_ON_TILESET)
-				.is_region());
-		};
-
 		// The shortest path from the left-hand Spawn should be of length nine.
-		assertion(0, 9);
+		assertion(&test_tileset, &test_paths, 0, 6);
 
 		// The shortest path from the right-hand Spawn should be of length 15.
-		assertion(1, 15);
+		assertion(&test_tileset, &test_paths, 1, 12);
+	}
+
+
+	#[test]
+	fn shortest_from_coordinate_to() {
+		let test_tileset = Tileset::new(PARK.iter().collect());
+
+		let start = Instant::now();
+		let test_path =
+			Path::shortest_from_coordinate_to(&test_tileset, Coordinate(4, 4), &test_tileset.exits)
+				.unwrap();
+		println!(
+			"Path::shortest_from_coordinate_to {}us",
+			Instant::now().duration_since(start).as_micros()
+		);
+
+		let desired_len = 6;
+		assert_eq!(test_path.0.len(), desired_len);
+		assert!(test_path.0[..(desired_len - 1)].into_iter().all(|coord| coord
+			.get_from(&test_tileset.grid)
+			.expect(COORDINATE_ON_TILESET)
+			.is_passable()));
+	}
+
+	#[test]
+	fn shortest_from_entrances_to_any_exit() {
+		let test_tileset = Tileset::new(PARK_TWO_SPAWN.iter().collect());
+
+		let start = Instant::now();
+		let test_paths: Vec<_> = Path::shortest_from_entrances_to_any_exit(&test_tileset).into_iter().flatten().collect();
+		println!(
+			"Path::shortest_from_entrances_to_any_exit {}us",
+			Instant::now().duration_since(start).as_micros()
+		);
+
+		// There should be two paths to the core since there are two spawn points.
+		assert_eq!(test_paths.len(), 2);
+
+		// The shortest path from the left-hand Spawn should be of length nine.
+		assertion(&test_tileset, &test_paths, 0, 6);
+
+		// The shortest path from the right-hand Spawn should be of length 15.
+		assertion(&test_tileset, &test_paths, 1, 12);
 	}
 }

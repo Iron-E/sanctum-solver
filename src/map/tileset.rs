@@ -15,20 +15,31 @@ pub const REGION_HAS_COORDINATE: &str = "Expected the region to have at least on
 /// # Summary
 ///
 /// A two-dimensional array / grid of [`Tile`]s.
-#[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-pub struct Tileset(pub Vec<Vec<Tile>>);
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct Tileset<A>
+where
+	A: AsRef<[Tile]>,
+{
+	pub grid: Vec<A>,
+	pub entrances: Vec<HashSet<Coordinate>>,
+	pub exits: HashSet<Coordinate>,
+}
 
-impl Tileset {
+impl<A> Tileset<A>
+where
+	A: AsRef<[Tile]>,
+{
 	/// # Summary
 	///
 	/// Select all of the [`Tile::Empty`]s next to [`Tile::Spawn`] points on this [`Tileset`].
-	pub fn entrances(&self) -> Vec<HashSet<Coordinate>> {
-		self.separate_regions(Tile::Spawn)
+	fn entrances(tileset: &[A]) -> Vec<HashSet<Coordinate>> {
+		Self::separate_regions(tileset, Tile::Spawn)
 			.expect(IS_REGION)
 			.into_iter()
 			.map(|region| {
 				// get a random point on the region and look for adjacent empty tiles
-				self.get_adjacent_to(
+				Self::get_adjacent_to(
+					tileset,
 					region.into_iter().next().expect(REGION_HAS_COORDINATE),
 					Tile::Empty,
 				)
@@ -39,17 +50,19 @@ impl Tileset {
 	/// # Summary
 	///
 	/// Select all of the [`Tile::Empty`]s next to [`Tile::Core`] points on this [`Tileset`].
-	pub fn exits(&self) -> Vec<HashSet<Coordinate>> {
-		self.separate_regions(Tile::Core)
+	fn exits(tileset: &[A]) -> HashSet<Coordinate> {
+		Self::separate_regions(tileset, Tile::Core)
 			.expect(IS_REGION)
 			.into_iter()
 			.map(|region| {
 				// get a random point on the region and look for adjacent empty tiles
-				self.get_adjacent_to(
+				Self::get_adjacent_to(
+					tileset,
 					region.into_iter().next().expect(REGION_HAS_COORDINATE),
 					Tile::Empty,
 				)
 			})
+			.flatten()
 			.collect()
 	}
 
@@ -57,8 +70,8 @@ impl Tileset {
 	///
 	/// Get the adjacent [`Tile`]s of `needle`'s type which are adjecent to the `start`ing
 	/// [`Coordinate`].
-	fn get_adjacent_to(&self, start: Coordinate, needle: Tile) -> HashSet<Coordinate> {
-		let start_tile = start.get_from(&self.0).expect(COORDINATE_ON_TILESET);
+	fn get_adjacent_to(tileset: &[A], start: Coordinate, needle: Tile) -> HashSet<Coordinate> {
+		let start_tile = start.get_from(&tileset).expect(COORDINATE_ON_TILESET);
 
 		let mut coordinate_queue = LinkedList::new();
 		let mut visited = HashMap::new();
@@ -72,7 +85,7 @@ impl Tileset {
 			}
 
 			// All of the coordinates from `select` should exist in the `tileset`.
-			let tile = coord.get_from(&self.0).expect(COORDINATE_ON_TILESET);
+			let tile = coord.get_from(&tileset).expect(COORDINATE_ON_TILESET);
 
 			// We shouldn't count a coordinate as 'visited' until we can extract its tile value.
 			visited.insert(coord, tile);
@@ -81,7 +94,7 @@ impl Tileset {
 			if (start_tile.is_region() && tile == start_tile)
 				|| (tile.is_passable() && tile != needle)
 			{
-				Adjacent::<Coordinate>::from_array_coordinate(&self.0, &coord)
+				Adjacent::<Coordinate>::from_array_coordinate(&tileset, &coord)
 					.for_each(|adjacent| coordinate_queue.push_back(adjacent));
 			}
 		}
@@ -96,8 +109,19 @@ impl Tileset {
 
 	/// # Summary
 	///
+	/// Create a new [`Tileset`] from some two-dimensional `grid` of [`Tile`]s.
+	pub fn new(grid: Vec<A>) -> Self {
+		Self {
+			entrances: Self::entrances(&grid),
+			exits: Self::exits(&grid),
+			grid,
+		}
+	}
+
+	/// # Summary
+	///
 	/// Get all of the different regions for some type of `tile`.
-	fn separate_regions(&self, start_tile: Tile) -> Result<Vec<HashSet<Coordinate>>> {
+	fn separate_regions(tileset: &[A], start_tile: Tile) -> Result<Vec<HashSet<Coordinate>>> {
 		if !start_tile.is_region() {
 			return Err(Error::NotRegion { tile: start_tile });
 		}
@@ -117,14 +141,14 @@ impl Tileset {
 				}
 
 				// All of the coordinates from `select` should exist in the `tileset`.
-				let tile = coord.get_from(&self.0).expect(COORDINATE_ON_TILESET);
+				let tile = coord.get_from(&tileset).expect(COORDINATE_ON_TILESET);
 
 				// These are the tiles which we want to keep looking beyond.
 				if tile == start_tile {
 					// We shouldn't count a coordinate as 'visited' until we can extract its tile value.
 					visited.insert(coord);
 
-					Adjacent::<Coordinate>::from_array_coordinate(&self.0, &coord)
+					Adjacent::<Coordinate>::from_array_coordinate(&tileset, &coord)
 						.for_each(|adjacent| coordinate_queue.push_back(adjacent));
 				}
 			}
@@ -132,8 +156,9 @@ impl Tileset {
 			visited
 		};
 
-		self.0.iter().enumerate().for_each(|(y, row)| {
-			row.iter()
+		tileset.iter().enumerate().for_each(|(y, row)| {
+			row.as_ref()
+				.iter()
 				.enumerate()
 				.filter(|(_, row_value)| *row_value == &start_tile)
 				.for_each(|(x, _)| {
@@ -201,14 +226,8 @@ pub mod tests {
 
 	#[test]
 	fn entrances() {
-		let test = Tileset(
-			PARK.iter()
-				.map(|row| row.iter().copied().collect())
-				.collect(),
-		);
-
 		let start = Instant::now();
-		let entrances = test.entrances();
+		let entrances = Tileset::entrances(&PARK);
 		println!(
 			"Tileset::entrances {}us",
 			Instant::now().duration_since(start).as_micros()
@@ -231,23 +250,16 @@ pub mod tests {
 
 	#[test]
 	fn exits() {
-		let test = Tileset(
-			PARK.iter()
-				.map(|row| row.iter().copied().collect())
-				.collect(),
-		);
-
 		let start = Instant::now();
-		let exits = test.exits();
+		let exits = Tileset::exits(&PARK);
 		println!(
 			"Tileset::exits {}us",
 			Instant::now().duration_since(start).as_micros()
 		);
 
-		assert_eq!(exits.len(), 1);
 		assert_eq!(
-			exits.first().unwrap(),
-			&[
+			exits,
+			[
 				Coordinate(4, 9),
 				Coordinate(5, 9),
 				Coordinate(6, 9),
@@ -265,16 +277,9 @@ pub mod tests {
 
 	#[test]
 	fn separate_regions() {
-		let test = Tileset(
-			PARK_TWO_SPAWN
-				.iter()
-				.map(|row| row.iter().copied().collect())
-				.collect(),
-		);
-
 		let start = Instant::now();
-		let core_regions = test.separate_regions(Tile::Core).unwrap();
-		let spawn_regions = test.separate_regions(Tile::Spawn).unwrap();
+		let core_regions = Tileset::separate_regions(&PARK_TWO_SPAWN, Tile::Core).unwrap();
+		let spawn_regions = Tileset::separate_regions(&PARK_TWO_SPAWN, Tile::Spawn).unwrap();
 		println!(
 			"Tileset::separate_regions {}us",
 			Instant::now().duration_since(start).as_micros() / 2
@@ -296,7 +301,7 @@ pub mod tests {
 		);
 
 		// Can't get a non-region.
-		assert!(test.separate_regions(Tile::Impass).is_err());
+		assert!(Tileset::separate_regions(&PARK_TWO_SPAWN, Tile::Impass).is_err());
 
 		// Two `spawn` regions
 		assert_eq!(spawn_regions.len(), 2);

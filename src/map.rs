@@ -1,3 +1,4 @@
+mod adjacent;
 mod coordinate;
 mod tile;
 

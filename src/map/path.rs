@@ -8,7 +8,7 @@ use {
 		Adjacent, Coordinate, Tile,
 	},
 	serde::{Deserialize, Serialize},
-	std::collections::HashMap,
+	std::collections::{HashMap, LinkedList},
 };
 
 pub const PATH_HAS_COORDINATE: &str = "Expected path to have at least one coordinate.";
@@ -32,10 +32,12 @@ impl Path {
 			return Err(Error::CannotPass { tile: start_tile });
 		}
 
-		let mut coordinate_path_queue = vec![(start, vec![start])];
+		let mut coordinate_path_queue = LinkedList::new();
 		let mut visited = HashMap::<Coordinate, Vec<Coordinate>>::new();
 
-		while let Some((coord, current_path)) = coordinate_path_queue.pop() {
+		coordinate_path_queue.push_back((start, vec![start]));
+
+		while let Some((coord, current_path)) = coordinate_path_queue.pop_front() {
 			// If the current path is longer than the previous path (defaulting to `false` if there
 			// is no previous path).
 			if match visited.get(&coord) {
@@ -55,7 +57,7 @@ impl Path {
 						let mut new_path = current_path.clone();
 						new_path.push(adjacent);
 
-						coordinate_path_queue.push((adjacent, new_path))
+						coordinate_path_queue.push_back((adjacent, new_path))
 					},
 				);
 			}

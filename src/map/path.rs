@@ -32,10 +32,10 @@ impl Path {
 			return Err(Error::CannotPass { tile: start_tile });
 		}
 
-		let mut coordinate_distance_queue = vec![(start, vec![start])];
+		let mut coordinate_path_queue = vec![(start, vec![start])];
 		let mut visited = HashMap::<Coordinate, Vec<Coordinate>>::new();
 
-		while let Some((coord, current_path)) = coordinate_distance_queue.pop() {
+		while let Some((coord, current_path)) = coordinate_path_queue.pop() {
 			// If the current path is longer than the previous path (defaulting to `false` if there
 			// is no previous path).
 			if match visited.get(&coord) {
@@ -55,7 +55,7 @@ impl Path {
 						let mut new_path = current_path.clone();
 						new_path.push(adjacent);
 
-						coordinate_distance_queue.push((adjacent, new_path))
+						coordinate_path_queue.push((adjacent, new_path))
 					},
 				);
 			}
@@ -137,8 +137,8 @@ impl From<&Tileset> for Result<Vec<Path>> {
 #[cfg(test)]
 mod tests {
 	use {
-		super::{Coordinate, Path, Result, Tile, Tileset},
-		crate::map::tileset::tests::PARK_TWO_SPAWN,
+		super::{Coordinate, Path, Result, Tile, Tileset, COORDINATE_ON_TILESET},
+		crate::map::tileset::tests::{PARK, PARK_TWO_SPAWN},
 		std::time::Instant,
 	};
 
@@ -160,5 +160,56 @@ mod tests {
 
 		// There should be two paths to the core since there are two spawn points.
 		assert_eq!(test_paths.len(), 2);
+
+		let assertion = |index: usize, desired_len: usize| {
+			// Since there may be multiple ways to do this we aren't going to test it
+			// directly, rather we're going to assert things about the path instead.
+			assert_eq!(test_paths[index].0.len(), desired_len);
+			assert!(test_paths[index].0[..(desired_len - 1)]
+				.into_iter()
+				.all(|coord| coord
+					.get_from(&test_tileset.0)
+					.expect(COORDINATE_ON_TILESET)
+					.is_passable()));
+			assert!(test_paths[index].0[desired_len - 1]
+				.get_from(&test_tileset.0)
+				.expect(COORDINATE_ON_TILESET)
+				.is_region());
+		};
+
+		// The shortest path from the left-hand Spawn should be of length nine.
+		assertion(0, 9);
+
+		// The shortest path from the right-hand Spawn should be of length 15.
+		assertion(1, 15);
+	}
+
+	#[test]
+	fn from_tileset_coordinate() {
+		let test_tileset = Tileset(
+			PARK
+				.iter()
+				.map(|row| row.iter().copied().collect())
+				.collect(),
+		);
+
+		let start = Instant::now();
+		let test_path = Path::from_tileset_coordinate(&test_tileset, Coordinate(4, 4), Tile::Core).unwrap();
+		println!(
+			"Path::from_tileset_coordinate {}us",
+			Instant::now().duration_since(start).as_micros()
+		);
+
+		assert_eq!(test_path.0.len(), 9);
+		assert!(test_path.0[..8]
+			.into_iter()
+			.all(|coord| coord
+				.get_from(&test_tileset.0)
+				.expect(COORDINATE_ON_TILESET)
+				.is_passable()));
+		assert!(test_path.0[8]
+			.get_from(&test_tileset.0)
+			.expect(COORDINATE_ON_TILESET)
+			.is_region());
 	}
 }

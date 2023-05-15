@@ -10,10 +10,7 @@ pub use {
 	tile::Tile,
 };
 
-use {
-	serde::{Deserialize, Serialize},
-	tileset::Tileset,
-};
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Map {

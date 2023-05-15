@@ -74,7 +74,7 @@ mod tests {
 	];
 
 	#[test]
-	fn test_select() {
+	fn select() {
 		let park = Map {
 			name: "Park".into(),
 			tileset: PARK

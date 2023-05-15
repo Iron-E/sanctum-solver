@@ -1,4 +1,4 @@
-use {super::Coordinate, crate::Container, std::collections::HashSet};
+use {super::Coordinate, crate::Container};
 
 /// # Summary
 ///
@@ -6,12 +6,18 @@ use {super::Coordinate, crate::Container, std::collections::HashSet};
 /// checking before insertion into the main [`Build`][build].
 ///
 /// [build]: super::Build
-pub(super) struct TempBuild<'blocks> {
-	pub(super) blocks: &'blocks HashSet<Coordinate>,
+pub(super) struct TempBuild<'blocks, C>
+where
+	C: Container<Coordinate>,
+{
+	pub(super) blocks: &'blocks C,
 	pub(super) temp_block: Coordinate,
 }
 
-impl Container<Coordinate> for TempBuild<'_> {
+impl<C> Container<Coordinate> for TempBuild<'_, C>
+where
+	C: Container<Coordinate>,
+{
 	fn contains(&self, some: &Coordinate) -> bool {
 		self.blocks.contains(some) || self.temp_block == *some
 	}

@@ -1,15 +1,16 @@
 # See https://doc.rust-lang.org/cargo/reference/manifest.html
 [package]
-name = "sanctum_solver"
-version = "0.3.1"
-authors = ["AllMyJokesArgon"]
+name = "sanctum-solver"
+edition = "2021"
+version = "0.4.0"
+authors = ["Iron-E"]
 description = "Find the most efficient build for a Sanctum map."
 
 categories = ["algorithms", "command-line-utilities", "simulation"]
-edition = "2018"
 keywords = ["coffee stain studios", "fps", "longest", "maze", "path", "rts", "sanctum"]
 license = "GPL3"
 readme = "./README.md"
+repository = "https://www.github.com/Iron-E/sanctum-solver"
 
 [dependencies]
 # Arguments
@@ -22,5 +23,5 @@ snafu = "0.6"
 rayon = "1"
 
 # Serialization
-serde = {features=["derive"], version="1"}
+serde = {features = ["derive"], version = "1"}
 serde_json = "1"

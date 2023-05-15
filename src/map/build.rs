@@ -36,7 +36,7 @@ impl Build {
 		};
 
 		let mut current_entrance = 0;
-		let mut placements = 0;
+		let mut placements = 1;
 
 		while match max_blocks {
 			Some(max) => max > build.blocks.len(),

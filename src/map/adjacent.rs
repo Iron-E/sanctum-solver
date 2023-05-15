@@ -1,7 +1,4 @@
-use {
-	super::{Build, Coordinate, Tile},
-	std::{array::IntoIter, iter::Flatten},
-};
+use super::{tileset::COORDINATE_ON_TILESET, Build, Coordinate, Tile};
 
 /// # Summary
 ///
@@ -9,12 +6,13 @@ use {
 #[derive(Copy, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Adjacent<T> {
 	pub up: Option<T>,
-	pub up_right: Option<T>,
 	pub right: Option<T>,
-	pub down_right: Option<T>,
 	pub down: Option<T>,
-	pub down_left: Option<T>,
 	pub left: Option<T>,
+
+	pub up_right: Option<T>,
+	pub down_right: Option<T>,
+	pub down_left: Option<T>,
 	pub up_left: Option<T>,
 }
 
@@ -35,17 +33,79 @@ impl<T> Adjacent<T> {
 		}
 
 		call!(self.up);
-		call!(self.up_right);
 		call!(self.right);
-		call!(self.down_right);
 		call!(self.down);
-		call!(self.down_left);
 		call!(self.left);
+
+		call!(self.up_right);
+		call!(self.down_right);
+		call!(self.down_left);
 		call!(self.up_left);
 	}
 }
 
 impl Adjacent<Coordinate> {
+	/// # Summary
+	///
+	/// Return [`Self::from_grid_coordinate`] but with blocked diagonals reflecteed from the build.
+	pub fn from_build_coordinate(
+		grid: &[impl AsRef<[Tile]>],
+		build: Option<&Build>,
+		coord: &Coordinate,
+	) -> Self {
+		let mut adjacents = Self::from_grid_coordinate(grid, coord);
+
+		let can_move_up = match adjacents.up {
+			Some(up) => up
+				.get_from_build(&grid, build)
+				.expect(COORDINATE_ON_TILESET)
+				.is_passable(),
+			_ => false,
+		};
+
+		let can_move_right = match adjacents.right {
+			Some(right) => right
+				.get_from_build(&grid, build)
+				.expect(COORDINATE_ON_TILESET)
+				.is_passable(),
+			_ => false,
+		};
+
+		let can_move_down = match adjacents.down {
+			Some(down) => down
+				.get_from_build(&grid, build)
+				.expect(COORDINATE_ON_TILESET)
+				.is_passable(),
+			_ => false,
+		};
+
+		let can_move_left = match adjacents.left {
+			Some(left) => left
+				.get_from_build(&grid, build)
+				.expect(COORDINATE_ON_TILESET)
+				.is_passable(),
+			_ => false,
+		};
+
+		/// # Summary
+		///
+		/// If `$cond` is `true`, then return `Some($value)`. Otherwise, return `None`.
+		macro_rules! if_then_none {
+			($($cond: expr)*, $field: ident) => {
+				if $(!$cond)&&* {
+					adjacents.$field = None;
+				}
+			};
+		}
+
+		if_then_none!(can_move_up can_move_right, up_right);
+		if_then_none!(can_move_down can_move_right, down_right);
+		if_then_none!(can_move_down can_move_left, down_left);
+		if_then_none!(can_move_up can_move_left, up_left);
+
+		adjacents
+	}
+
 	/// # Summary
 	///
 	/// Get the adjacent [`Coordinate`]s to a `coordinate` on an `array`.
@@ -70,74 +130,27 @@ impl Adjacent<Coordinate> {
 
 		Self {
 			up: if_then_or_none!(can_move_up, Coordinate(coord.0, coord.1 - 1)),
+			right: if_then_or_none!(can_move_right, Coordinate(coord.0 + 1, coord.1)),
+			down: if_then_or_none!(can_move_down, Coordinate(coord.0, coord.1 + 1)),
+			left: if_then_or_none!(can_move_left, Coordinate(coord.0 - 1, coord.1)),
+
 			up_right: if_then_or_none!(
 				can_move_up && can_move_right,
 				Coordinate(coord.0 + 1, coord.1 - 1)
 			),
-			right: if_then_or_none!(can_move_right, Coordinate(coord.0 + 1, coord.1)),
 			down_right: if_then_or_none!(
 				can_move_down && can_move_right,
 				Coordinate(coord.0 + 1, coord.1 + 1)
 			),
-			down: if_then_or_none!(can_move_down, Coordinate(coord.0, coord.1 + 1)),
 			down_left: if_then_or_none!(
 				can_move_down && can_move_left,
 				Coordinate(coord.0 - 1, coord.1 + 1)
 			),
-			left: if_then_or_none!(can_move_left, Coordinate(coord.0 - 1, coord.1)),
 			up_left: if_then_or_none!(
 				can_move_up && can_move_left,
 				Coordinate(coord.0 - 1, coord.1 - 1)
 			),
 		}
-	}
-
-	/// # Summary
-	///
-	/// Return [`Self::from_grid_coordinate`] but with blocked diagonals reflecteed from the build.
-	pub fn from_build_coordinate(
-		grid: &[impl AsRef<[Tile]>],
-		build: Option<&Build>,
-		coord: &Coordinate,
-	) -> Self {
-		let mut adjacents = Self::from_grid_coordinate(grid, coord);
-
-		if let Some(b) = build {
-			let contains_up = adjacents
-				.up
-				.and_then(|up| Some(b.blocks.contains(&up)))
-				.unwrap_or(false);
-			let contains_right = adjacents
-				.right
-				.and_then(|right| Some(b.blocks.contains(&right)))
-				.unwrap_or(false);
-			let contains_down = adjacents
-				.down
-				.and_then(|down| Some(b.blocks.contains(&down)))
-				.unwrap_or(false);
-			let contains_left = adjacents
-				.left
-				.and_then(|left| Some(b.blocks.contains(&left)))
-				.unwrap_or(false);
-
-			/// # Summary
-			///
-			/// If `$cond` is `true`, then return `Some($value)`. Otherwise, return `None`.
-			macro_rules! if_then_none {
-				($($cond: expr)*, $field: ident) => {
-					if $($cond)&&* {
-						adjacents.$field = None;
-					}
-				};
-			}
-
-			if_then_none!(contains_up contains_right, up_right);
-			if_then_none!(contains_down contains_right, down_right);
-			if_then_none!(contains_down contains_left, down_left);
-			if_then_none!(contains_up contains_left, up_left);
-		}
-
-		adjacents
 	}
 }
 
@@ -145,20 +158,56 @@ impl Adjacent<Coordinate> {
 mod tests {
 	use {
 		super::{Adjacent, Coordinate},
-		crate::map::{Tile, Tile::*},
+		crate::map::{Build, Tile, Tile::*},
+		std::time::Instant,
 	};
 
 	#[rustfmt::skip]
 	const ARRAY: [[Tile; 5]; 5] = [
-		[Impass, Impass, Impass, Impass, Impass],
-		[Spawn,  Pass,   Empty,  Core,   Impass],
-		[Spawn,  Pass,   Empty,  Core,   Impass],
-		[Spawn,  Pass,   Empty,  Core,   Impass],
-		[Impass, Impass, Impass, Impass, Impass],
+		// 0    1      2      3      4
+		[Empty, Empty,  Empty, Empty, Empty], // 0
+		[Spawn, Empty,  Empty, Empty, Core],  // 1
+		[Spawn, Impass, Empty, Empty, Core],  // 2
+		[Spawn, Empty,  Empty, Empty, Core],  // 3
+		[Empty, Empty,  Empty, Empty, Core],  // 4
 	];
 
 	#[test]
-	fn from_array_coordinate() {
+	fn from_build_coordinate() {
+		let build = Build {
+			blocks: [Coordinate(2, 1), Coordinate(3, 2)]
+				.iter()
+				.copied()
+				.collect(),
+		};
+
+		let start = Instant::now();
+		let adjacents = Adjacent::from_build_coordinate(&ARRAY, Some(&build), &Coordinate(2, 2));
+		println!(
+			"Adjacent::from_build_coordiante {}us",
+			Instant::now().duration_since(start).as_micros()
+		);
+
+		assert_eq!(
+			adjacents,
+			Adjacent {
+				up: Some(Coordinate(2, 1)),
+				right: Some(Coordinate(3, 2)),
+				down: Some(Coordinate(2, 3)),
+				left: Some(Coordinate(1, 2)),
+
+				up_right: None,
+				down_right: Some(Coordinate(3, 3)),
+				down_left: Some(Coordinate(1, 3)),
+				up_left: None,
+			},
+		);
+	}
+
+	#[test]
+	fn from_grid_coordinate() {
+		let start = Instant::now();
+
 		// Normal adjacency; no special cases
 		assert_eq!(
 			Adjacent::<Coordinate>::from_grid_coordinate(&ARRAY, &Coordinate(2, 2)),
@@ -232,6 +281,11 @@ mod tests {
 				left: None,
 				up_left: None,
 			}
+		);
+
+		println!(
+			"Adjacent::from_grid_coordinate {}us",
+			Instant::now().duration_since(start).as_micros() / 6
 		);
 	}
 }

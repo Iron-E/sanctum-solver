@@ -77,7 +77,7 @@ impl Tileset {
 				Adjacent::<Coordinate>::from_array_coordinate(&self.0, &coord)
 					.into_iter()
 					.flatten()
-					.for_each(|coord| coordinate_queue.push(coord));
+					.for_each(|adjacent| coordinate_queue.push(adjacent));
 			}
 		}
 
@@ -92,22 +92,25 @@ impl Tileset {
 	///
 	/// Get all `end_tile`s nearest to `start_tile`.
 	fn get_all_nearest_to(&self, end_tile: Tile, start: Coordinate) -> HashSet<Coordinate> {
-		let mut coordinate_queue: Vec<Coordinate> = vec![start];
-		let mut visited = HashSet::new();
+		let mut coordinate_distance_queue: Vec<(Coordinate, usize)> = vec![(start, 0)];
+		let mut visited = HashMap::new();
 
 		let start_tile = start.get_from(&self.0).expect(COORDINATE_NOT_ON_TILESET);
 
-		while let Some(coord) = coordinate_queue.pop() {
+		while let Some((coord, distance)) = coordinate_distance_queue.pop() {
 			// Don't revisit a coordinate we've already been to.
-			if visited.contains(&coord) {
+			if match visited.get(&coord) {
+				Some(d) => d > &distance,
+				_ => false,
+			} {
 				continue;
 			}
 
-			// All of the coordinates from `select` should exist in the `tileset`.
+			// All of the coord_distanceinates from `select` should exist in the `tileset`.
 			let tile = coord.get_from(&self.0).expect(COORDINATE_NOT_ON_TILESET);
 
-			// We shouldn't count a coordinate as 'visited' until we can extract its tile value.
-			visited.insert(coord);
+			// We shouldn't count a coord_distanceinate as 'visited' until we can extract its tile value.
+			visited.insert(coord, distance);
 
 			// These are the tiles which we want to keep looking beyond.
 			if (start_tile.is_region() && tile == start_tile)
@@ -116,26 +119,27 @@ impl Tileset {
 				Adjacent::<Coordinate>::from_array_coordinate(&self.0, &coord)
 					.into_iter()
 					.flatten()
-					.for_each(|coord| coordinate_queue.push(coord));
+					.for_each(|adjacent| coordinate_distance_queue.push((adjacent, distance + 1)));
 			}
 		}
 
-		let mut distances = (usize::MAX, Vec::new());
-		for visit in visited
-		{
-			let distance = start.distance_from(visit);
+		let mut distances: Vec<(Coordinate, usize)> = visited
+			.into_iter()
+			.filter(|(c, _)| c.get_from(&self.0).expect(COORDINATE_NOT_ON_TILESET) == end_tile)
+			.collect();
 
-			if distances.0 > distance
-			{
-				distances.1 = vec![visit];
-			}
-			else if distances.0 == distance
-			{
-				distances.1.push(visit);
-			}
-		}
+		distances.sort_by_key(|(_, d)| *d);
 
-		distances.1.into_iter().collect()
+		let shortest_distance = match distances.first() {
+			Some((_, distance)) => *distance,
+			_ => return HashSet::new(),
+		};
+
+		distances
+			.into_iter()
+			.take_while(|(_, d)| d == &shortest_distance)
+			.map(|(c, _)| c)
+			.collect()
 	}
 }
 
@@ -189,7 +193,7 @@ mod tests {
 				Coordinate(4, 1),
 				Coordinate(4, 2),
 				Coordinate(4, 3),
-				Coordinate(4, 4)
+				Coordinate(4, 4),
 			]
 			.iter()
 			.copied()
@@ -249,58 +253,58 @@ mod tests {
 			impasses,
 			[
 				(0, 0),
+				(0, 10),
+				(0, 11),
+				(0, 12),
+				(0, 13),
+				(0, 5),
+				(0, 6),
+				(0, 7),
+				(0, 8),
+				(0, 9),
 				(1, 0),
+				(1, 10),
+				(1, 11),
+				(1, 12),
+				(1, 13),
+				(1, 5),
+				(1, 6),
+				(1, 7),
+				(1, 8),
+				(1, 9),
+				(10, 0),
+				(10, 1),
+				(10, 2),
+				(11, 12),
+				(14, 9),
 				(2, 0),
+				(2, 10),
+				(2, 11),
+				(2, 12),
+				(2, 13),
+				(2, 5),
+				(2, 6),
+				(2, 7),
+				(2, 8),
+				(2, 9),
 				(3, 0),
+				(3, 10),
+				(3, 11),
+				(3, 12),
+				(3, 13),
+				(3, 5),
+				(3, 6),
+				(3, 7),
+				(3, 8),
+				(3, 9),
 				(4, 0),
 				(5, 0),
 				(6, 0),
 				(7, 0),
 				(8, 0),
 				(9, 0),
-				(10, 0),
 				(9, 1),
-				(10, 1),
 				(9, 2),
-				(10, 2),
-				(0, 5),
-				(1, 5),
-				(2, 5),
-				(3, 5),
-				(0, 6),
-				(1, 6),
-				(2, 6),
-				(3, 6),
-				(0, 7),
-				(1, 7),
-				(2, 7),
-				(3, 7),
-				(0, 8),
-				(1, 8),
-				(2, 8),
-				(3, 8),
-				(0, 9),
-				(1, 9),
-				(2, 9),
-				(3, 9),
-				(14, 9),
-				(0, 10),
-				(1, 10),
-				(2, 10),
-				(3, 10),
-				(0, 11),
-				(1, 11),
-				(2, 11),
-				(3, 11),
-				(0, 12),
-				(1, 12),
-				(2, 12),
-				(3, 12),
-				(11, 12),
-				(0, 13),
-				(1, 13),
-				(2, 13),
-				(3, 13),
 			]
 			.iter()
 			.map(|c| Coordinate(c.0, c.1))

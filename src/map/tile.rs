@@ -33,6 +33,6 @@ pub enum Tile {
 
 	/// # Summary
 	///
-	/// A [`Pass`](Self::Pass) where enemies may come from. Serves as a __starting point__.
+	/// An [`Impass`](Self::Impass) where enemies may come from. Serves as a __starting point__.
 	Spawn,
 }

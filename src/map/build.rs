@@ -149,7 +149,7 @@ impl Build {
 					tileset.entrances[entrance].iter(),
 					&tileset.exits,
 				)
-				.expect(VALID_BUILD) == shortest_path
+				.expect(VALID_BUILD) != shortest_path
 					.as_ref()
 					.expect("Expected `shortest_path` to be `Some` by now")
 				{

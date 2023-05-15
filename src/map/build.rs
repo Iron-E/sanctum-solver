@@ -1,11 +1,13 @@
 use {
 	super::{
 		tileset::{Tileset, COORDINATE_ON_TILESET},
-		Coordinate, ShortestPath, Tile,
+		Adjacent, Coordinate, ShortestPath, Tile,
 	},
-	std::collections::HashSet,
 	serde::{Deserialize, Serialize},
+	std::collections::HashSet,
 };
+
+const VALID_BUILD: &str = "Expected build to produce shortest paths";
 
 /// # Summary
 ///
@@ -34,48 +36,64 @@ impl Build {
 		};
 
 		let mut current_entrance = 0;
-		let mut switch_entrance = || {
-			if current_entrance < tileset.entrances.len() - 1 {
-				current_entrance += 1;
-			} else {
-				current_entrance = 0;
-			}
-			current_entrance
-		};
+		let mut placements = 0;
 
 		while match max_blocks {
 			Some(max) => max > build.blocks.len(),
 			_ => true,
 		} {
-			for coord in ShortestPath::from_any_to(
-				&tileset,
-				Some(&build),
-				tileset.entrances[switch_entrance()].iter(),
-				&tileset.exits,
+			let entrance = {
+				// If we're still iterating over the number of entrances
+				if current_entrance < tileset.entrances.len() - 1 {
+					current_entrance += 1;
+				// If blocks are still being placed.
+				} else if placements > 0 {
+					current_entrance = 0;
+					placements = 0;
+				} else {
+					break;
+				}
+				current_entrance
+			};
+
+			for coord in Vec::<Coordinate>::from(
+				ShortestPath::from_any_to(
+					&tileset.grid,
+					Some(&build),
+					tileset.entrances[entrance].iter(),
+					&tileset.exits,
+				)
+				.expect(VALID_BUILD),
 			)
-			.expect("Expected build to be valid")
-			.coordinates()
 			.into_iter()
 			.rev()
 			.filter(|coord| {
 				coord.get_from(&tileset.grid).expect(COORDINATE_ON_TILESET) == Tile::Empty
 			}) {
-				// TODO: check to see if any blocks can be removed from the build without removing any
-				//       distance from the path.
+				println!("\nChecking {:?}", coord);
 
-				// TODO: check if no more blocks can be placed (i.e. the build is optimal) and exit
-				//       early.
-
-				if build.blocks.contains(&coord) { continue; }
+				if build.blocks.contains(&coord) {
+					println!("> Contains {:?}", coord);
+					continue;
+				}
 
 				build.blocks.insert(coord);
 
 				if build.is_valid_for(&tileset) {
+					println!("> Valid with {:?}. Trying to remove adjacents…", coord);
+
+					build.try_remove_adjacent_to(&coord, &tileset, entrance);
+					placements += 1;
+
 					break;
+				} else {
+					println!("> Invalid with {:?}", coord);
 				}
 
 				build.blocks.remove(&coord);
 			}
+
+			println!("{:?}", build.blocks);
 		}
 
 		build
@@ -91,7 +109,7 @@ impl Build {
 			&& tileset.entrances.iter().all(|region| {
 				region.iter().any(|entrance| {
 					ShortestPath::from_coordinate_to(
-						&tileset,
+						&tileset.grid,
 						Some(self),
 						*entrance,
 						&tileset.exits,
@@ -99,6 +117,50 @@ impl Build {
 					.is_some()
 				})
 			})
+	}
+
+	fn try_remove_adjacent_to<'coord>(
+		&mut self,
+		coord: &Coordinate,
+		tileset: &Tileset,
+		entrance: usize,
+	) {
+		let mut shortest_path = Option::<ShortestPath>::None;
+
+		Adjacent::<Coordinate>::from_grid_coordinate(&tileset.grid, &coord).for_each(|adjacent| {
+			if self.blocks.contains(&adjacent) {
+				if shortest_path.is_none() {
+					shortest_path = Some(
+						ShortestPath::from_any_to(
+							&tileset.grid,
+							Some(&self),
+							tileset.entrances[entrance].iter(),
+							&tileset.exits,
+						)
+						.expect(VALID_BUILD),
+					);
+				}
+
+				self.blocks.remove(&adjacent);
+
+				if &ShortestPath::from_any_to(
+					&tileset.grid,
+					Some(&self),
+					tileset.entrances[entrance].iter(),
+					&tileset.exits,
+				)
+				.expect(VALID_BUILD) == shortest_path
+					.as_ref()
+					.expect("Expected `shortest_path` to be `Some` by now")
+				{
+					println!(">> Requires {:?}", adjacent);
+
+					self.blocks.insert(adjacent);
+				} else {
+					println!(">> Unused {:?}", adjacent);
+				}
+			}
+		});
 	}
 }
 

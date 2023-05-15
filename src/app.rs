@@ -10,14 +10,18 @@ use {
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, StructOpt)]
 #[structopt(
 	name = "sanctum_solver",
-	about = "A tool to find the most optimal layout for a Sanctum map"
+	about = "A tool to find optimal layouts for a Sanctum map"
 )]
 pub struct App {
 	#[structopt(help = "The maximum number of blocks to place", long, short)]
 	blocks: Option<usize>,
 
-	#[structopt(help = "A JSON file containing the map layout")]
-	map_json: PathBuf,
+	#[structopt(
+		help = "Allow diagonal movement when calculating shortest paths",
+		long,
+		short
+	)]
+	diagonals: bool,
 
 	#[structopt(
 		help = "Where to save the output. If not specified, goes to `stdout`",
@@ -27,11 +31,14 @@ pub struct App {
 	output: Option<PathBuf>,
 
 	#[structopt(
-		help = "Prioritize placing blocks for spawn regions with shorter paths to the core. Default: false",
+		help = "Prioritize placing blocks for spawn regions with shorter paths to the core",
 		long,
 		short
 	)]
 	prioritize: bool,
+
+	#[structopt(help = "A JSON file containing the map layout")]
+	map_json: PathBuf,
 }
 
 impl App {
@@ -43,9 +50,9 @@ impl App {
 		let mut tileset = Tileset::new(map.grid);
 
 		let build = if self.prioritize {
-			Build::from_entrances_to_any_core_with_priority(&tileset, self.blocks)
+			Build::from_entrances_to_any_core_with_priority(&tileset, self.diagonals, self.blocks)
 		} else {
-			Build::from_entrances_to_any_core(&tileset, self.blocks)
+			Build::from_entrances_to_any_core(&tileset, self.diagonals, self.blocks)
 		};
 		build.apply_to(&mut tileset.grid);
 
@@ -54,6 +61,7 @@ impl App {
 			ShortestPath::from_entrances_to_any_core(
 				&Tileset::new(map.grid.clone()),
 				Option::<&HashSet<_>>::None,
+				self.diagonals,
 			)
 			.into_iter()
 			.map(|path| path.map(|p| p.len()))

@@ -21,9 +21,9 @@ impl Build {
 	/// # Summary
 	///
 	/// Apply all of the `blocks` from the [`Build`] to a `tileset`.
-	pub fn apply_to(&self, tileset: &mut Tileset) {
+	pub fn apply_to(&self, grid: &mut [impl AsMut<[Tile]>]) {
 		self.blocks.iter().for_each(|coordinate| {
-			coordinate.set(&mut tileset.grid, Tile::Block);
+			coordinate.set(grid, Tile::Block);
 		})
 	}
 
@@ -166,8 +166,8 @@ mod tests {
 			Instant::now().duration_since(start).as_micros()
 		);
 
-		build.apply_to(&mut test_tileset);
-		println!("{:?}", test_tileset);
+		build.apply_to(&mut test_tileset.grid);
+		println!("{:?}", test_tileset.grid);
 
 		// TODO: write assertions
 	}

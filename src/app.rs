@@ -31,7 +31,7 @@ pub struct App {
 	output: Option<PathBuf>,
 
 	#[structopt(
-		help = "Prioritize placing blocks for spawn regions with shorter paths to the core",
+		help = "Prioritize spawn regions with shorter paths to the core",
 		long,
 		short
 	)]

@@ -106,13 +106,13 @@ impl Adjacent<Coordinate> {
 		let mut adjacent = Self::from_grid_coordinate(grid, coord);
 
 		let can_move = |direction: Option<Coordinate>| -> bool {
-			match direction {
-				Some(up) => up
-					.get_from_with_build(&grid, build)
-					.expect(COORDINATE_ON_TILESET)
-					.is_passable(),
-				_ => false,
-			}
+			direction
+				.map(|d| {
+					d.get_from_with_build(&grid, build)
+						.expect(COORDINATE_ON_TILESET)
+						.is_passable()
+				})
+				.unwrap_or(false)
 		};
 
 		let can_move_up = can_move(adjacent.up);

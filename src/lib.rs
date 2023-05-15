@@ -1,3 +1,1 @@
-mod map;
-
-pub use map::{Coordinate, Map, Tile};
+pub mod map;

@@ -116,7 +116,33 @@ mod tests {
 	};
 
 	#[test]
-	fn from() {
+	fn from_coordinate() {
+		let test_tileset = Tileset(
+			PARK.iter()
+				.map(|row| row.iter().copied().collect())
+				.collect(),
+		);
+
+		let start = Instant::now();
+		let test_path = Path::from_coordinate(&test_tileset, Coordinate(4, 4), Tile::Core).unwrap();
+		println!(
+			"Path::from_coordinate {}us",
+			Instant::now().duration_since(start).as_micros()
+		);
+
+		assert_eq!(test_path.0.len(), 9);
+		assert!(test_path.0[..8].into_iter().all(|coord| coord
+			.get_from(&test_tileset.0)
+			.expect(COORDINATE_ON_TILESET)
+			.is_passable()));
+		assert!(test_path.0[8]
+			.get_from(&test_tileset.0)
+			.expect(COORDINATE_ON_TILESET)
+			.is_region());
+	}
+
+	#[test]
+	fn from_entrances_or_exits() {
 		let test_tileset = Tileset(
 			PARK_TWO_SPAWN
 				.iter()
@@ -133,7 +159,7 @@ mod tests {
 			})
 			.collect();
 		println!(
-			"Result::<Vec<Path>>::from {}us",
+			"Path::from_entrances_or_exits {}us",
 			Instant::now().duration_since(start).as_micros()
 		);
 
@@ -161,31 +187,5 @@ mod tests {
 
 		// The shortest path from the right-hand Spawn should be of length 15.
 		assertion(1, 15);
-	}
-
-	#[test]
-	fn from_tileset_coordinate() {
-		let test_tileset = Tileset(
-			PARK.iter()
-				.map(|row| row.iter().copied().collect())
-				.collect(),
-		);
-
-		let start = Instant::now();
-		let test_path = Path::from_coordinate(&test_tileset, Coordinate(4, 4), Tile::Core).unwrap();
-		println!(
-			"Path::from_tileset_coordinate {}us",
-			Instant::now().duration_since(start).as_micros()
-		);
-
-		assert_eq!(test_path.0.len(), 9);
-		assert!(test_path.0[..8].into_iter().all(|coord| coord
-			.get_from(&test_tileset.0)
-			.expect(COORDINATE_ON_TILESET)
-			.is_passable()));
-		assert!(test_path.0[8]
-			.get_from(&test_tileset.0)
-			.expect(COORDINATE_ON_TILESET)
-			.is_region());
 	}
 }

@@ -36,6 +36,8 @@ mod tests {
 			vec![21, 22, 23, 24, 25],
 		];
 
-		assert_eq!(Coordinate(2, 2).get(&array), Some(13));
+		assert_eq!(Coordinate(2,2).get(&array), Some(13));
+		assert_eq!(Coordinate(0,1).get(&array), Some(6));
+		assert_eq!(Coordinate(100,1).get(&array), None);
 	}
 }

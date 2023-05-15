@@ -54,7 +54,11 @@ impl Adjacent<Coordinate> {
 	/// # Summary
 	///
 	/// Get the adjacent [`Coordinate`]s to a `coordinate` on an `array`.
-	pub fn from_grid_coordinate<T>(grid: &[impl AsRef<[T]>], coord: &Coordinate, diagonals: bool) -> Self {
+	pub fn from_grid_coordinate<T>(
+		grid: &[impl AsRef<[T]>],
+		coord: &Coordinate,
+		diagonals: bool,
+	) -> Self {
 		/// # Summary
 		///
 		/// If `$cond` is `true`, then return `Some($value)`. Otherwise, return `None`.

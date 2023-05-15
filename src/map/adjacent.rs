@@ -1,5 +1,3 @@
-mod into_iterator;
-
 use super::{Coordinate, Tile};
 
 /// # Summary
@@ -11,6 +9,26 @@ pub struct Adjacent<T> {
 	pub right: Option<T>,
 	pub down: Option<T>,
 	pub left: Option<T>,
+}
+
+impl<T> Adjacent<T> {
+	/// # Summary
+	///
+	/// Run some `f`unction on each [`Some`] value.
+	pub fn for_each(self, mut f: impl FnMut(T)) {
+		if let Some(adjacent) = self.up {
+			f(adjacent);
+		}
+		if let Some(adjacent) = self.right {
+			f(adjacent);
+		}
+		if let Some(adjacent) = self.down {
+			f(adjacent);
+		}
+		if let Some(adjacent) = self.left {
+			f(adjacent);
+		}
+	}
 }
 
 impl Adjacent<Coordinate> {

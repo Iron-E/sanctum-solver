@@ -1,0 +1,19 @@
+{
+	"name": "Park",
+	"grid": [
+		["Impass", "Impass", "Impass", "Impass", "Impass", "Impass", "Impass", "Impass", "Impass", "Impass", "Impass", "Empty",  "Empty", "Empty", "Empty",  "Empty"],
+		["Pass",   "Pass",   "Pass",   "Pass",   "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Impass", "Impass", "Empty",  "Empty", "Empty", "Empty",  "Empty"],
+		["Spawn",  "Pass",   "Pass",   "Pass",   "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Impass", "Impass", "Empty",  "Empty", "Empty", "Empty",  "Empty"],
+		["Pass",   "Pass",   "Pass",   "Pass",   "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Empty", "Empty", "Empty",  "Empty"],
+		["Pass",   "Pass",   "Pass",   "Pass",   "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Empty", "Empty", "Empty",  "Empty"],
+		["Impass", "Impass", "Impass", "Impass", "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Empty", "Empty", "Empty",  "Spawn"],
+		["Impass", "Impass", "Impass", "Impass", "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Empty", "Empty", "Empty",  "Empty"],
+		["Impass", "Impass", "Impass", "Impass", "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Empty", "Empty", "Empty",  "Empty"],
+		["Impass", "Impass", "Impass", "Impass", "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Empty", "Empty", "Empty",  "Empty"],
+		["Impass", "Impass", "Impass", "Impass", "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Empty",  "Empty", "Empty", "Impass", "Empty"],
+		["Impass", "Impass", "Impass", "Impass", "Pass",   "Pass",   "Pass",   "Pass",   "Empty",  "Empty",  "Empty",  "Empty",  "Empty", "Empty", "Empty",  "Empty"],
+		["Impass", "Impass", "Impass", "Impass", "Pass",   "Core",   "Core",   "Pass",   "Empty",  "Empty",  "Empty",  "Empty",  "Empty", "Empty", "Empty",  "Empty"],
+		["Impass", "Impass", "Impass", "Impass", "Pass",   "Core",   "Core",   "Pass",   "Empty",  "Empty",  "Empty",  "Impass", "Empty", "Empty", "Empty",  "Empty"],
+		["Impass", "Impass", "Impass", "Impass", "Pass",   "Pass",   "Pass",   "Pass",   "Empty",  "Empty",  "Empty",  "Empty",  "Empty", "Empty", "Empty",  "Empty"]
+	]
+}

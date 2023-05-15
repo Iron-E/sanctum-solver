@@ -1,3 +1,5 @@
+mod into_iterator;
+
 use super::{Coordinate, Tile};
 
 /// # Summary
@@ -5,10 +7,10 @@ use super::{Coordinate, Tile};
 /// Types which are adjacent to some other type.
 #[derive(Copy, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Adjacent<T> {
-	up: Option<T>,
-	right: Option<T>,
-	down: Option<T>,
-	left: Option<T>,
+	pub up: Option<T>,
+	pub right: Option<T>,
+	pub down: Option<T>,
+	pub left: Option<T>,
 }
 
 impl Adjacent<Coordinate> {

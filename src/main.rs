@@ -1,3 +1,5 @@
+#![feature(map_first_last)]
+
 mod app;
 mod map;
 

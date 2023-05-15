@@ -4,7 +4,7 @@ use {
 		Adjacent, Coordinate, ShortestPath, Tile,
 	},
 	serde::{Deserialize, Serialize},
-	std::collections::HashSet,
+	std::collections::{BTreeMap, HashSet},
 };
 
 const VALID_BUILD: &str = "Expected build to produce shortest paths";
@@ -29,7 +29,8 @@ impl Build {
 
 	/// # Summary
 	///
-	/// Get the longest build for a specific `tileset`.
+	/// Get the longest build for a specific `tileset` by using round-robin on all of the spawn
+	/// regions.
 	pub fn from_entrances_to_any_core(tileset: &Tileset, max_blocks: Option<usize>) -> Self {
 		let mut build = Build {
 			blocks: HashSet::new(),
@@ -82,6 +83,84 @@ impl Build {
 					break;
 				}
 
+				build.blocks.remove(&coord);
+			}
+		}
+
+		build
+	}
+
+	/// # Summary
+	///
+	/// Get the longest build for a specific `tileset` by taking priority on the current shortest
+	/// path.
+	pub fn from_entrances_to_any_core_with_priority(tileset: &Tileset, max_blocks: Option<usize>) -> Self {
+		let mut build = Build {
+			blocks: HashSet::new(),
+		};
+
+		let mut shortest_paths_by_region: BTreeMap<_, _> =
+			ShortestPath::from_entrances_to_any_core(&tileset, None)
+				.into_iter()
+				.enumerate()
+				.map(|(index, shortest_path)| (shortest_path.expect(VALID_BUILD), index))
+				.collect();
+
+		fn new_shortest_path(
+			build: &Build,
+			tileset: &Tileset,
+			region_index: usize,
+		) -> ShortestPath {
+			ShortestPath::from_any_grid_coordinate_to_tile(
+				&tileset.grid,
+				Some(&build),
+				tileset.entrances_by_region[region_index].iter(),
+				Tile::Core,
+			)
+			.expect(VALID_BUILD)
+		}
+
+		while let Some((shortest_path, region_index)) = shortest_paths_by_region.pop_first() {
+			if match max_blocks {
+				Some(max) => build.blocks.len() >= max,
+				_ => false,
+			} {
+				break;
+			}
+
+			let shortest_path_vec = Vec::<_>::from(shortest_path);
+
+			// The shortest path for this region has had a block placed over it. Recalculate and try again!
+			if shortest_path_vec
+				.iter()
+				.any(|coord| build.blocks.contains(coord))
+			{
+				shortest_paths_by_region.insert(
+					new_shortest_path(&build, &tileset, region_index),
+					region_index,
+				);
+				continue;
+			}
+
+			for coord in shortest_path_vec.into_iter().rev().filter(|coord| {
+				coord.get_from(&tileset.grid).expect(COORDINATE_ON_TILESET) == Tile::Empty
+			}) {
+				// Insert the coordinate into the build, just to test if it's valid in there.
+				build.blocks.insert(coord);
+
+				if build.is_valid_for(&tileset) {
+					// If it's valid, recalculate the shortest path.
+					shortest_paths_by_region.insert(
+						new_shortest_path(&build, &tileset, region_index),
+						region_index,
+					);
+
+					// Try removing adjacent tiles.
+					build.try_remove_adjacent_to(&coord, &tileset);
+					break;
+				}
+
+				// Build was not valid with coordinate; remove it.
 				build.blocks.remove(&coord);
 			}
 		}
@@ -149,28 +228,6 @@ mod tests {
 		crate::map::tileset::tests::PARK_TWO_SPAWN,
 		std::time::Instant,
 	};
-
-	#[test]
-	fn from_entrances_to_any_core() {
-		let mut test_tileset = Tileset::new(
-			PARK_TWO_SPAWN
-				.iter()
-				.map(|inner| inner.iter().copied().collect())
-				.collect(),
-		);
-
-		let start = Instant::now();
-		let build = Build::from_entrances_to_any_core(&test_tileset, None);
-		println!(
-			"Build::from_entrances_to_any_core {}us",
-			Instant::now().duration_since(start).as_micros()
-		);
-
-		build.apply_to(&mut test_tileset.grid);
-		println!("{:?}", test_tileset.grid);
-
-		// TODO: write assertions
-	}
 
 	#[test]
 	fn is_valid() {

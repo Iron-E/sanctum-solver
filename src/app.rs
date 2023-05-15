@@ -13,6 +13,9 @@ use {
 	about = "A tool to find the most optimal layout for a Sanctum map."
 )]
 pub struct App {
+	#[structopt(help = "The maximum number of blocks to place.", long, short)]
+	blocks: Option<usize>,
+
 	#[structopt(help = "A JSON file containing the map layout.")]
 	map_json: PathBuf,
 }

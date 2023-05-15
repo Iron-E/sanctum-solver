@@ -193,7 +193,6 @@ impl Tileset {
 				}
 			}
 
-			// Whatever we visited which was an `Empty` tile, return.
 			visited
 		};
 

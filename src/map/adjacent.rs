@@ -23,8 +23,8 @@ impl<T> Adjacent<T> {
 	pub fn for_each(self, mut f: impl FnMut(T)) {
 		/// # Summary
 		///
-		/// Makes calling the passed in `f` function more simple than writing `if let` four times.
-		macro_rules! call {
+		/// Call `f` on `$arg`
+		macro_rules! call_if_some {
 			($arg: expr) => {
 				if let Some(some_arg) = $arg {
 					f(some_arg);
@@ -32,15 +32,15 @@ impl<T> Adjacent<T> {
 			};
 		}
 
-		call!(self.up);
-		call!(self.right);
-		call!(self.down);
-		call!(self.left);
+		call_if_some!(self.up);
+		call_if_some!(self.right);
+		call_if_some!(self.down);
+		call_if_some!(self.left);
 
-		call!(self.up_right);
-		call!(self.down_right);
-		call!(self.down_left);
-		call!(self.up_left);
+		call_if_some!(self.up_right);
+		call_if_some!(self.down_right);
+		call_if_some!(self.down_left);
+		call_if_some!(self.up_left);
 	}
 }
 
@@ -53,7 +53,7 @@ impl Adjacent<Coordinate> {
 		build: Option<&Build>,
 		coord: &Coordinate,
 	) -> Self {
-		let mut adjacents = Self::from_grid_coordinate(grid, coord);
+		let mut adjacent = Self::from_grid_coordinate(grid, coord);
 
 		let can_move = |direction: Option<Coordinate>| -> bool {
 			match direction {
@@ -65,18 +65,23 @@ impl Adjacent<Coordinate> {
 			}
 		};
 
-		let can_move_up = can_move(adjacents.up);
-		let can_move_right = can_move(adjacents.right);
-		let can_move_down = can_move(adjacents.down);
-		let can_move_left = can_move(adjacents.left);
+		let can_move_up = can_move(adjacent.up);
+		let can_move_right = can_move(adjacent.right);
+		let can_move_down = can_move(adjacent.down);
+		let can_move_left = can_move(adjacent.left);
 
 		/// # Summary
 		///
 		/// If `$cond` is `true`, then return `Some($value)`. Otherwise, return `None`.
+		///
+		/// # Remarks
+		///
+		/// We don't set it to `Impass` or `Block`, because `None`s are ignored by `for_each`.
+		/// Therefore we get a performance improvement.
 		macro_rules! if_then_none {
 			($($cond: expr)*, $field: ident) => {
 				if $(!$cond)&&* {
-					adjacents.$field = None;
+					adjacent.$field = None;
 				}
 			};
 		}
@@ -86,7 +91,7 @@ impl Adjacent<Coordinate> {
 		if_then_none!(can_move_down can_move_left, down_left);
 		if_then_none!(can_move_up can_move_left, up_left);
 
-		adjacents
+		adjacent
 	}
 
 	/// # Summary
@@ -165,14 +170,14 @@ mod tests {
 		};
 
 		let start = Instant::now();
-		let adjacents = Adjacent::from_build_coordinate(&ARRAY, Some(&build), &Coordinate(2, 2));
+		let adjacent = Adjacent::from_build_coordinate(&ARRAY, Some(&build), &Coordinate(2, 2));
 		println!(
 			"Adjacent::from_build_coordiante {}us",
 			Instant::now().duration_since(start).as_micros()
 		);
 
 		assert_eq!(
-			adjacents,
+			adjacent,
 			Adjacent {
 				up: Some(Coordinate(2, 1)),
 				right: Some(Coordinate(3, 2)),
@@ -193,7 +198,7 @@ mod tests {
 
 		// Normal adjacency; no special cases
 		assert_eq!(
-			Adjacent::<Coordinate>::from_grid_coordinate(&ARRAY, &Coordinate(2, 2)),
+			Adjacent::from_grid_coordinate(&ARRAY, &Coordinate(2, 2)),
 			Adjacent {
 				up: Some(Coordinate(2, 1)),
 				up_right: Some(Coordinate(3, 1)),
@@ -208,7 +213,7 @@ mod tests {
 
 		// Nothing to the top.
 		assert_eq!(
-			Adjacent::<Coordinate>::from_grid_coordinate(&ARRAY, &Coordinate(2, 0)),
+			Adjacent::from_grid_coordinate(&ARRAY, &Coordinate(2, 0)),
 			Adjacent {
 				up: None,
 				up_right: None,
@@ -223,7 +228,7 @@ mod tests {
 
 		// Nothing to the right.
 		assert_eq!(
-			Adjacent::<Coordinate>::from_grid_coordinate(&ARRAY, &Coordinate(4, 3)),
+			Adjacent::from_grid_coordinate(&ARRAY, &Coordinate(4, 3)),
 			Adjacent {
 				up: Some(Coordinate(4, 2)),
 				up_right: None,
@@ -238,7 +243,7 @@ mod tests {
 
 		// Nothing to the bottom.
 		assert_eq!(
-			Adjacent::<Coordinate>::from_grid_coordinate(&ARRAY, &Coordinate(3, 4)),
+			Adjacent::from_grid_coordinate(&ARRAY, &Coordinate(3, 4)),
 			Adjacent {
 				up: Some(Coordinate(3, 3)),
 				right: Some(Coordinate(4, 4)),
@@ -254,7 +259,7 @@ mod tests {
 
 		// Nothing to the left.
 		assert_eq!(
-			Adjacent::<Coordinate>::from_grid_coordinate(&ARRAY, &Coordinate(0, 2)),
+			Adjacent::from_grid_coordinate(&ARRAY, &Coordinate(0, 2)),
 			Adjacent {
 				up: Some(Coordinate(0, 1)),
 				right: Some(Coordinate(1, 2)),

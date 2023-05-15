@@ -45,9 +45,10 @@ impl ShortestPath {
 		build: Option<&impl Container<Coordinate>>,
 		start_points: impl ParallelIterator<Item = &'coord Coordinate>,
 		end_tile: Tile,
+		diagonals: bool,
 	) -> Option<Self> {
 		start_points
-			.map(|coord| ShortestPath::from_grid_coordinate_to_tile(&grid, build, *coord, end_tile))
+			.map(|coord| ShortestPath::from_grid_coordinate_to_tile(&grid, build, *coord, end_tile, diagonals))
 			.flatten()
 			.reduce_with(ShortestPath::return_shorter)
 	}
@@ -58,6 +59,7 @@ impl ShortestPath {
 	pub fn from_entrances_to_any_core(
 		tileset: &Tileset,
 		build: Option<&impl Container<Coordinate>>,
+		diagonals: bool,
 	) -> Vec<Option<Self>> {
 		tileset
 			.entrances_by_region
@@ -68,6 +70,7 @@ impl ShortestPath {
 					build,
 					entrances.par_iter(),
 					Tile::Core,
+					diagonals,
 				)
 			})
 			.collect()
@@ -81,6 +84,7 @@ impl ShortestPath {
 		build: Option<&impl Container<Coordinate>>,
 		start: Coordinate,
 		end_point: Tile,
+		diagonals: bool,
 	) -> Option<Self> {
 		let start_tile = start
 			.get_from_with_build(&grid, build)
@@ -118,7 +122,7 @@ impl ShortestPath {
 			// Only keep looking beyond a passable tile, and if the current tile is not what we're
 			// searching for.
 			else if tile.is_passable() {
-				Adjacent::from_grid_coordinate_with_build(&grid, build, &coord).for_each(
+				Adjacent::from_grid_coordinate_with_build(&grid, build, &coord, diagonals).for_each(
 					|adjacent_coord| {
 						let mut new_path = Vec::with_capacity(current_path.len() + 1);
 						new_path.extend_from_slice(&current_path);
@@ -220,6 +224,7 @@ mod tests {
 					Option::<&HashSet<_>>::None,
 					entrances.par_iter(),
 					Tile::Core,
+					true,
 				)
 			})
 			.flatten()
@@ -232,7 +237,7 @@ mod tests {
 
 		let start = Instant::now();
 		let test_from_entrances_to_any_core =
-			ShortestPath::from_entrances_to_any_core(&test_tileset, Option::<&HashSet<_>>::None)
+			ShortestPath::from_entrances_to_any_core(&test_tileset, Option::<&HashSet<_>>::None, true)
 				.into_iter()
 				.flatten()
 				.collect::<Vec<_>>();
@@ -268,6 +273,7 @@ mod tests {
 			Option::<&HashSet<_>>::None,
 			Coordinate(4, 4),
 			Tile::Core,
+			true,
 		)
 		.unwrap();
 		println!(

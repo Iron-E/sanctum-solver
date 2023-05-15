@@ -40,10 +40,12 @@ impl Coordinate {
 		grid: &[impl AsRef<[Tile]>],
 		build: Option<&impl Container<Coordinate>>,
 	) -> Option<Tile> {
-		match build {
-			Some(b) if b.contains(&self) => Some(Tile::Block),
-			_ => self.get_from(grid),
+		if let Some(b) = build {
+			if b.contains(self) {
+				return Some(Tile::Block);
+			}
 		}
+		self.get_from(grid)
 	}
 
 	/// # Summary

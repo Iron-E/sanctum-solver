@@ -18,8 +18,7 @@ pub const REGION_HAS_COORDINATE: &str = "Expected the region to have at least on
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Tileset {
 	pub grid: Vec<Vec<Tile>>,
-	pub entrances: Vec<HashSet<Coordinate>>,
-	pub exits: HashSet<Coordinate>,
+	pub entrances_by_region: Vec<HashSet<Coordinate>>,
 }
 
 impl Tileset {
@@ -38,25 +37,6 @@ impl Tileset {
 					Tile::Empty,
 				)
 			})
-			.collect()
-	}
-
-	/// # Summary
-	///
-	/// Select all of the [`Tile::Empty`]s next to [`Tile::Core`] points on this [`Tileset`].
-	fn exits(tileset: &[impl AsRef<[Tile]>]) -> HashSet<Coordinate> {
-		Self::separate_regions(tileset, Tile::Core)
-			.expect(IS_REGION)
-			.into_iter()
-			.map(|region| {
-				// get a random point on the region and look for adjacent empty tiles
-				Self::get_adjacent_to(
-					tileset,
-					region.into_iter().next().expect(REGION_HAS_COORDINATE),
-					Tile::Empty,
-				)
-			})
-			.flatten()
 			.collect()
 	}
 
@@ -110,8 +90,7 @@ impl Tileset {
 	/// Create a new [`Tileset`] from some two-dimensional `grid` of [`Tile`]s.
 	pub fn new(grid: Vec<Vec<Tile>>) -> Self {
 		Self {
-			entrances: Self::entrances(&grid),
-			exits: Self::exits(&grid),
+			entrances_by_region: Self::entrances(&grid),
 			grid,
 		}
 	}
@@ -243,34 +222,6 @@ pub mod tests {
 				Coordinate(4, 3),
 				Coordinate(4, 4),
 				Coordinate(4, 5),
-			]
-			.iter()
-			.copied()
-			.collect()
-		)
-	}
-
-	#[test]
-	fn exits() {
-		let start = Instant::now();
-		let exits = Tileset::exits(&PARK);
-		println!(
-			"Tileset::exits {}us",
-			Instant::now().duration_since(start).as_micros()
-		);
-
-		assert_eq!(
-			exits,
-			[
-				Coordinate(4, 9),
-				Coordinate(5, 9),
-				Coordinate(6, 9),
-				Coordinate(7, 9),
-				Coordinate(8, 9),
-				Coordinate(8, 10),
-				Coordinate(8, 11),
-				Coordinate(8, 12),
-				Coordinate(8, 13),
 			]
 			.iter()
 			.copied()

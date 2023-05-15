@@ -4,8 +4,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// A square on a [`Map`](super::Map).
 #[derive(Copy, Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-pub enum Tile
-{
+pub enum Tile {
 	/// # Summary
 	///
 	/// An [`Impass`](Self::Impass) space which used to be [`Empty`](Self::Empty)

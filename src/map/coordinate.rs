@@ -4,18 +4,16 @@
 #[derive(Copy, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Coordinate(pub usize, pub usize);
 
-impl Coordinate
-{
+impl Coordinate {
 	/// # Summary
 	///
 	/// Retrieve the `T` value stored at the [`Coordinate`] in array.
-	pub fn get<T>(&self, array: &[impl AsRef<[T]>]) -> Option<T> where
-		T : Copy,
+	pub fn get<T>(&self, array: &[impl AsRef<[T]>]) -> Option<T>
+	where
+		T: Copy,
 	{
-		if let Some(inner) = array.get(self.1)
-		{
-			if let Some(value) = inner.as_ref().get(self.0)
-			{
+		if let Some(inner) = array.get(self.1) {
+			if let Some(value) = inner.as_ref().get(self.0) {
 				return Some(*value);
 			}
 		}
@@ -25,16 +23,14 @@ impl Coordinate
 }
 
 #[cfg(test)]
-mod tests
-{
+mod tests {
 	use super::Coordinate;
 
 	#[test]
-	fn test_get()
-	{
+	fn test_get() {
 		let array = vec![
-			vec![1,  2,  3,  4,  5],
-			vec![6,  7,  8,  9,  10],
+			vec![1, 2, 3, 4, 5],
+			vec![6, 7, 8, 9, 10],
 			vec![11, 12, 13, 14, 15],
 			vec![16, 17, 18, 19, 20],
 			vec![21, 22, 23, 24, 25],

@@ -55,37 +55,20 @@ impl Adjacent<Coordinate> {
 	) -> Self {
 		let mut adjacents = Self::from_grid_coordinate(grid, coord);
 
-		let can_move_up = match adjacents.up {
-			Some(up) => up
-				.get_from_build(&grid, build)
-				.expect(COORDINATE_ON_TILESET)
-				.is_passable(),
-			_ => false,
+		let can_move = |direction: Option<Coordinate>| -> bool {
+			match direction {
+				Some(up) => up
+					.get_from_build(&grid, build)
+					.expect(COORDINATE_ON_TILESET)
+					.is_passable(),
+				_ => false,
+			}
 		};
 
-		let can_move_right = match adjacents.right {
-			Some(right) => right
-				.get_from_build(&grid, build)
-				.expect(COORDINATE_ON_TILESET)
-				.is_passable(),
-			_ => false,
-		};
-
-		let can_move_down = match adjacents.down {
-			Some(down) => down
-				.get_from_build(&grid, build)
-				.expect(COORDINATE_ON_TILESET)
-				.is_passable(),
-			_ => false,
-		};
-
-		let can_move_left = match adjacents.left {
-			Some(left) => left
-				.get_from_build(&grid, build)
-				.expect(COORDINATE_ON_TILESET)
-				.is_passable(),
-			_ => false,
-		};
+		let can_move_up = can_move(adjacents.up);
+		let can_move_right = can_move(adjacents.right);
+		let can_move_down = can_move(adjacents.down);
+		let can_move_left = can_move(adjacents.left);
 
 		/// # Summary
 		///
@@ -258,12 +241,13 @@ mod tests {
 			Adjacent::<Coordinate>::from_grid_coordinate(&ARRAY, &Coordinate(3, 4)),
 			Adjacent {
 				up: Some(Coordinate(3, 3)),
-				up_right: Some(Coordinate(4, 3)),
 				right: Some(Coordinate(4, 4)),
-				down_right: None,
 				down: None,
-				down_left: None,
 				left: Some(Coordinate(2, 4)),
+
+				up_right: Some(Coordinate(4, 3)),
+				down_right: None,
+				down_left: None,
 				up_left: Some(Coordinate(2, 3)),
 			}
 		);
@@ -273,12 +257,13 @@ mod tests {
 			Adjacent::<Coordinate>::from_grid_coordinate(&ARRAY, &Coordinate(0, 2)),
 			Adjacent {
 				up: Some(Coordinate(0, 1)),
-				up_right: Some(Coordinate(1, 1)),
 				right: Some(Coordinate(1, 2)),
-				down_right: Some(Coordinate(1, 3)),
 				down: Some(Coordinate(0, 3)),
-				down_left: None,
 				left: None,
+
+				up_right: Some(Coordinate(1, 1)),
+				down_right: Some(Coordinate(1, 3)),
+				down_left: None,
 				up_left: None,
 			}
 		);

@@ -4,8 +4,8 @@ pub use error::{Error, Result};
 
 use {
 	super::{Adjacent, Coordinate, Tile},
-	serde::{Deserialize, Serialize},
 	std::collections::{HashMap, HashSet, LinkedList},
+	serde::{Deserialize, Serialize},
 };
 
 pub const COORDINATE_ON_TILESET: &str = "Expected to visit coordinate which exists on tileset.";
@@ -18,14 +18,14 @@ pub const REGION_HAS_COORDINATE: &str = "Expected the region to have at least on
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Tileset {
 	pub grid: Vec<Vec<Tile>>,
-	pub entrances_by_region: Vec<HashSet<Coordinate>>,
+	pub entrances_by_region: Vec<HashMap<Coordinate, usize>>,
 }
 
 impl Tileset {
 	/// # Summary
 	///
 	/// Select all of the [`Tile::Empty`]s next to [`Tile::Spawn`] points on this [`Tileset`].
-	fn entrances(tileset: &[impl AsRef<[Tile]>]) -> Vec<HashSet<Coordinate>> {
+	fn entrances(tileset: &[impl AsRef<[Tile]>]) -> Vec<HashMap<Coordinate, usize>> {
 		Self::separate_regions(tileset, Tile::Spawn)
 			.expect(IS_REGION)
 			.into_iter()
@@ -45,11 +45,11 @@ impl Tileset {
 	/// Get the adjacent [`Tile`]s of `needle`'s type which are adjecent to the `start`ing
 	/// [`Coordinate`].
 	pub fn get_adjacent_to(
-		tileset: &[impl AsRef<[Tile]>],
+		grid: &[impl AsRef<[Tile]>],
 		start: Coordinate,
 		needle: Tile,
-	) -> HashSet<Coordinate> {
-		let start_tile = start.get_from(&tileset).expect(COORDINATE_ON_TILESET);
+	) -> HashMap<Coordinate, usize> {
+		let start_tile = start.get_from(&grid).expect(COORDINATE_ON_TILESET);
 
 		let mut coordinate_queue = LinkedList::new();
 		let mut visited = HashMap::new();
@@ -63,7 +63,7 @@ impl Tileset {
 			}
 
 			// All of the coordinates from `select` should exist in the `tileset`.
-			let tile = coord.get_from(&tileset).expect(COORDINATE_ON_TILESET);
+			let tile = coord.get_from(&grid).expect(COORDINATE_ON_TILESET);
 
 			// We shouldn't count a coordinate as 'visited' until we can extract its tile value.
 			visited.insert(coord, tile);
@@ -72,7 +72,7 @@ impl Tileset {
 			if (start_tile.is_region() && tile == start_tile)
 				|| (tile.is_passable() && tile != needle)
 			{
-				Adjacent::from_grid_coordinate(&tileset, &coord, false)
+				Adjacent::from_grid_coordinate(&grid, &coord, false)
 					.for_each(|adjacent_coord| coordinate_queue.push_back(adjacent_coord));
 			}
 		}
@@ -81,7 +81,7 @@ impl Tileset {
 		visited
 			.into_iter()
 			.filter(|(_, tile)| tile == &needle)
-			.map(|(coord, _)| coord)
+			.map(|(coord, _)| (coord, coord.distance_from(&start)))
 			.collect()
 	}
 
@@ -217,10 +217,10 @@ pub mod tests {
 		assert_eq!(
 			entrances.first().unwrap(),
 			&[
-				Coordinate(4, 1),
-				Coordinate(4, 2),
-				Coordinate(4, 3),
-				Coordinate(4, 4),
+				(Coordinate(4, 1), 5),
+				(Coordinate(4, 2), 4),
+				(Coordinate(4, 3), 5),
+				(Coordinate(4, 4), 6),
 			]
 			.iter()
 			.copied()

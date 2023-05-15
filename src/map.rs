@@ -2,12 +2,14 @@ mod adjacent;
 mod coordinate;
 mod tile;
 
-pub use {coordinate::Coordinate, tile::Tile};
+pub use {adjacent::Adjacent, coordinate::Coordinate, tile::Tile};
 
 use {
 	serde::{Deserialize, Serialize},
 	std::collections::HashSet,
 };
+
+const COORDINATE_NOT_ON_TILESET: &str = "Tried to visit non-existing coordiante";
 
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct Map {
@@ -18,17 +20,27 @@ pub struct Map {
 impl Map {
 	/// # Summary
 	///
-	/// Select all of the [`Tile::Buildable`]s next to [`Tile::Spawn`] points on this [`Map`].
-	pub fn entrances(self) -> HashSet<Coordinate> {
-		let spawn_tiles = self.select(&Tile::Spawn);
+	/// Select all of the [`Tile::Empty`]s next to [`Tile::Spawn`] points on this [`Map`].
+	pub fn entrances(&self) -> HashSet<Coordinate> {
+		self.select_first_empty_tiles_adjacent_to(&Tile::Spawn)
+	}
 
-		todo!()
+	/// # Summary
+	///
+	/// Select all of the [`Tile::Empty`]s next to [`Tile::Core`] points on this [`Map`].
+	pub fn exits(&self) -> HashSet<Coordinate> {
+		self.select_first_empty_tiles_adjacent_to(&Tile::Core)
 	}
 
 	/// # Summary
 	///
 	/// Return a [set](HashSet) of every specific [`Tile`] in the [`Map`].
-	pub fn select(self, tile: &Tile) -> HashSet<Coordinate> {
+	///
+	/// # Remarks
+	///
+	/// Iterates over each row and row-value of the [`Self::tileset`], filtering out those which are
+	/// not the same value as `tile`.
+	pub fn select(&self, tile: &Tile) -> HashSet<Coordinate> {
 		self.tileset
 			.iter()
 			.enumerate()
@@ -43,13 +55,57 @@ impl Map {
 			})
 			.collect()
 	}
+
+	/// # Summary
+	///
+	/// Select all [`Tile::Empty`]s next to the specified type of `tile`.
+	fn select_first_empty_tiles_adjacent_to(&self, tile: &Tile) -> HashSet<Coordinate> {
+		let mut coordinate_queue: Vec<Coordinate> = self.select(tile).into_iter().collect();
+		let mut visited = HashSet::<Coordinate>::new();
+
+		while let Some(coord) = coordinate_queue.pop() {
+			// Don't revisit a coordinate we've already been to.
+			if visited.contains(&coord) {
+				continue;
+			}
+
+			// All of the coordinates from `select` should exist in the `tileset`.
+			let tile_at_coord = coord
+				.get_from(&self.tileset)
+				.expect(COORDINATE_NOT_ON_TILESET);
+
+			// We shouldn't count a coordinate as 'visited' until we can extract its tile value.
+			visited.insert(coord);
+
+			// These are the tiles which we want to keep looking beyond.
+			if tile_at_coord == *tile || tile_at_coord == Tile::Pass {
+				Adjacent::<Coordinate>::from_array_coordinate(&self.tileset, &coord)
+					.into_iter()
+					.flatten()
+					.for_each(|coord| coordinate_queue.push(coord));
+			}
+		}
+
+		// Whatever we visited which was an `Empty` tile, return.
+		visited
+			.into_iter()
+			.filter(|coord| {
+				matches!(
+					coord
+						.get_from(&self.tileset)
+						.expect(COORDINATE_NOT_ON_TILESET),
+					Tile::Empty
+				)
+			})
+			.collect()
+	}
 }
 
 #[cfg(test)]
 mod tests {
 	use {
 		super::{Coordinate, Map, Tile, Tile::*},
-		std::collections::HashSet,
+		std::{collections::HashSet, time::Instant},
 	};
 
 	/// # Summary
@@ -75,6 +131,66 @@ mod tests {
 	];
 
 	#[test]
+	fn entrances() {
+		let park = Map {
+			name: "Park".into(),
+			tileset: PARK
+				.iter()
+				.map(|row| row.iter().copied().collect())
+				.collect(),
+		};
+
+		let start = Instant::now();
+		let entrances = park.entrances();
+		println!("Map::entrances {}us", Instant::now().duration_since(start).as_micros());
+
+		assert_eq!(
+			entrances,
+			[
+				Coordinate(4, 1),
+				Coordinate(4, 2),
+				Coordinate(4, 3),
+				Coordinate(4, 4)
+			]
+			.iter()
+			.copied()
+			.collect()
+		)
+	}
+
+	#[test]
+	fn exits() {
+		let park = Map {
+			name: "Park".into(),
+			tileset: PARK
+				.iter()
+				.map(|row| row.iter().copied().collect())
+				.collect(),
+		};
+
+		let start = Instant::now();
+		let exits = park.exits();
+		println!("Map::exits {}us", Instant::now().duration_since(start).as_micros());
+
+		assert_eq!(
+			exits,
+			[
+				Coordinate(4, 9),
+				Coordinate(5, 9),
+				Coordinate(6, 9),
+				Coordinate(7, 9),
+				Coordinate(8, 10),
+				Coordinate(8, 11),
+				Coordinate(8, 12),
+				Coordinate(8, 13),
+			]
+			.iter()
+			.copied()
+			.collect()
+		)
+	}
+
+	#[test]
 	fn select() {
 		let park = Map {
 			name: "Park".into(),
@@ -84,8 +200,12 @@ mod tests {
 				.collect(),
 		};
 
+		let start = Instant::now();
+		let impasses = park.select(&Tile::Impass);
+		println!("Map::select {}us", Instant::now().duration_since(start).as_micros());
+
 		assert_eq!(
-			park.select(&Tile::Impass),
+			impasses,
 			[
 				(0, 0),
 				(1, 0),

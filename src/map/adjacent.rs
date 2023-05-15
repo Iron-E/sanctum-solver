@@ -16,18 +16,21 @@ impl<T> Adjacent<T> {
 	///
 	/// Run some `f`unction on each [`Some`] value.
 	pub fn for_each(self, mut f: impl FnMut(T)) {
-		if let Some(adjacent) = self.up {
-			f(adjacent);
+		/// # Summary
+		///
+		/// Makes calling the passed in `f` function more simple than writing `if let` four times.
+		macro_rules! call {
+			($arg: expr) => {
+				if let Some(some_arg) = $arg {
+					f(some_arg);
+				}
+			};
 		}
-		if let Some(adjacent) = self.right {
-			f(adjacent);
-		}
-		if let Some(adjacent) = self.down {
-			f(adjacent);
-		}
-		if let Some(adjacent) = self.left {
-			f(adjacent);
-		}
+
+		call!(self.up);
+		call!(self.right);
+		call!(self.down);
+		call!(self.left);
 	}
 }
 
@@ -36,30 +39,27 @@ impl Adjacent<Coordinate> {
 	///
 	/// Get the adjacent [`Coordinate`]s to a `coordinate` on an `array`.
 	pub fn from_array_coordinate<T>(array: &[impl AsRef<[T]>], coord: &Coordinate) -> Self {
+		/// # Summary
+		///
+		/// If `$cond` is `true`, then return `Some($value)`. Otherwise, return `None`.
+		macro_rules! if_then_or_none {
+			($cond: expr, $value: expr) => {
+				if $cond {
+					Some($value)
+				} else {
+					None
+				}
+			};
+		}
+
 		Self {
-			up: if coord.1 > 0 {
-				Some(Coordinate(coord.0, coord.1 - 1))
-			} else {
-				None
-			},
-
-			right: if coord.0 < array[coord.1].as_ref().len() - 1 {
-				Some(Coordinate(coord.0 + 1, coord.1))
-			} else {
-				None
-			},
-
-			down: if coord.1 < array.len() - 1 {
-				Some(Coordinate(coord.0, coord.1 + 1))
-			} else {
-				None
-			},
-
-			left: if coord.0 > 0 {
-				Some(Coordinate(coord.0 - 1, coord.1))
-			} else {
-				None
-			},
+			up: if_then_or_none!(coord.1 > 0, Coordinate(coord.0, coord.1 - 1)),
+			right: if_then_or_none!(
+				coord.0 < array[coord.1].as_ref().len() - 1,
+				Coordinate(coord.0 + 1, coord.1)
+			),
+			down: if_then_or_none!(coord.1 < array.len() - 1, Coordinate(coord.0, coord.1 + 1)),
+			left: if_then_or_none!(coord.0 > 0, Coordinate(coord.0 - 1, coord.1)),
 		}
 	}
 

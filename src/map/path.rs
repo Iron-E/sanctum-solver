@@ -1,14 +1,10 @@
-mod error;
-
-pub use error::{Error, Result};
-
 use {
 	super::{
 		tileset::{Tileset, COORDINATE_ON_TILESET},
 		Adjacent, Coordinate, Tile,
 	},
 	serde::{Deserialize, Serialize},
-	std::collections::{HashMap, LinkedList},
+	std::collections::{HashMap, HashSet, LinkedList},
 };
 
 pub const PATH_HAS_COORDINATE: &str = "Expected path to have at least one coordinate.";
@@ -23,13 +19,13 @@ impl Path {
 	/// # Summary
 	///
 	/// Get the shortest [`Path`] to a [`Tile`] of `needle`'s type from some `start`ing [`Coordinate`] on a `tileset`.
-	fn from_tileset_coordinate(tileset: &Tileset, start: Coordinate, needle: Tile) -> Result<Self> {
+	fn from_coordinate(tileset: &Tileset, start: Coordinate, needle: Tile) -> Option<Self> {
 		let start_tile = start.get_from(&tileset.0).expect(COORDINATE_ON_TILESET);
 
 		// We don't want to start the search on a tile which cannot be walked over.
 		// This is to prevent accidentally crossing over the other side of a barrier.
 		if !start_tile.is_passable() {
-			return Err(Error::CannotPass { tile: start_tile });
+			return None;
 		}
 
 		let mut coordinate_path_queue = LinkedList::new();
@@ -66,7 +62,7 @@ impl Path {
 			visited.insert(coord, current_path);
 		}
 
-		Ok(visited
+		visited
 			.into_iter()
 			.filter(|(coord, _)| {
 				// Only want Tiles of `needle`'s type
@@ -74,7 +70,25 @@ impl Path {
 			})
 			.map(|(_, path)| Path(path))
 			.reduce(Path::return_shorter)
-			.expect(PATH_HAS_COORDINATE))
+	}
+
+	/// # Summary
+	///
+	/// Find the shortest [`Path`] from some `entrances_or_exits` on a `tileset`.
+	///
+	/// # Returns
+	///
+	/// * `Some(Path)` if there is a [`Path`].
+	/// * `None` if there is no [`Path`].
+	pub fn from_entrances_or_exits(
+		tileset: &Tileset,
+		entrances_or_exits: &HashSet<Coordinate>,
+	) -> Option<Self> {
+		entrances_or_exits
+			.iter()
+			.map(|entrance_or_exit| Path::from_coordinate(tileset, *entrance_or_exit, Tile::Core))
+			.flatten()
+			.reduce(Path::return_shorter)
 	}
 
 	/// # Summary
@@ -93,53 +107,10 @@ impl Path {
 	}
 }
 
-impl From<&Tileset> for Result<Vec<Path>> {
-	fn from(tileset: &Tileset) -> Self {
-		let entrance_regions = tileset.entrances();
-		let number_of_regions = entrance_regions.len();
-
-		Ok(entrance_regions
-			.into_iter()
-			.try_fold(
-				// Iterate over every region, and for each region, iterate over its entrances. For each
-				// entrance, get their path to the nearest core.
-				Vec::with_capacity(number_of_regions),
-				|mut paths_by_region, region| {
-					let number_of_entrances = region.len();
-
-					paths_by_region.push(region.into_iter().try_fold(
-						Vec::with_capacity(number_of_entrances),
-						|mut paths_by_entrance, entrance| {
-							paths_by_entrance.push(Path::from_tileset_coordinate(
-								tileset,
-								entrance,
-								Tile::Core,
-							)?);
-
-							Ok(paths_by_entrance)
-						},
-					)?);
-
-					Ok(paths_by_region)
-				},
-			)?
-			// Iterate over the `paths_by_region`, and for each region, select only the shortest path.
-			// This turns our Vec<Vec<Path>> (where outer Vec is region and inner Vec is entrance) into a Vec<Path> (where the vec is region and we only have the shortest path for each).
-			.into_iter()
-			.map(|region| {
-				region
-					.into_iter()
-					.reduce(Path::return_shorter)
-					.expect(PATH_HAS_COORDINATE)
-			})
-			.collect())
-	}
-}
-
 #[cfg(test)]
 mod tests {
 	use {
-		super::{Coordinate, Path, Result, Tile, Tileset, COORDINATE_ON_TILESET},
+		super::{Coordinate, Path, Tile, Tileset, COORDINATE_ON_TILESET, PATH_HAS_COORDINATE},
 		crate::map::tileset::tests::{PARK, PARK_TWO_SPAWN},
 		std::time::Instant,
 	};
@@ -154,7 +125,13 @@ mod tests {
 		);
 
 		let start = Instant::now();
-		let test_paths = Result::<Vec<Path>>::from(&test_tileset).unwrap();
+		let test_paths: Vec<_> = test_tileset
+			.entrances()
+			.into_iter()
+			.map(|entrances| {
+				Path::from_entrances_or_exits(&test_tileset, &entrances).expect(PATH_HAS_COORDINATE)
+			})
+			.collect();
 		println!(
 			"Result::<Vec<Path>>::from {}us",
 			Instant::now().duration_since(start).as_micros()
@@ -189,26 +166,23 @@ mod tests {
 	#[test]
 	fn from_tileset_coordinate() {
 		let test_tileset = Tileset(
-			PARK
-				.iter()
+			PARK.iter()
 				.map(|row| row.iter().copied().collect())
 				.collect(),
 		);
 
 		let start = Instant::now();
-		let test_path = Path::from_tileset_coordinate(&test_tileset, Coordinate(4, 4), Tile::Core).unwrap();
+		let test_path = Path::from_coordinate(&test_tileset, Coordinate(4, 4), Tile::Core).unwrap();
 		println!(
 			"Path::from_tileset_coordinate {}us",
 			Instant::now().duration_since(start).as_micros()
 		);
 
 		assert_eq!(test_path.0.len(), 9);
-		assert!(test_path.0[..8]
-			.into_iter()
-			.all(|coord| coord
-				.get_from(&test_tileset.0)
-				.expect(COORDINATE_ON_TILESET)
-				.is_passable()));
+		assert!(test_path.0[..8].into_iter().all(|coord| coord
+			.get_from(&test_tileset.0)
+			.expect(COORDINATE_ON_TILESET)
+			.is_passable()));
 		assert!(test_path.0[8]
 			.get_from(&test_tileset.0)
 			.expect(COORDINATE_ON_TILESET)

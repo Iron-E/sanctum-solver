@@ -3,7 +3,7 @@ mod error;
 use {
 	crate::map::{tileset::Tileset, Build, Map, ShortestPath},
 	error::Result,
-	std::{collections::HashSet, fs, path::PathBuf},
+	std::{fs, path::PathBuf},
 	structopt::StructOpt,
 };
 
@@ -47,26 +47,27 @@ impl App {
 	/// Run the application and parse its provided arguments / flags.
 	pub fn run(self) -> Result<()> {
 		let mut map: Map = serde_json::from_slice(&fs::read(self.map_json)?)?;
-		let mut tileset = Tileset::new(map.grid);
+		let tileset = Tileset::new(map.grid);
 
 		let build = if self.prioritize {
 			Build::from_entrances_to_any_core_with_priority(&tileset, self.diagonals, self.blocks)
 		} else {
 			Build::from_entrances_to_any_core(&tileset, self.diagonals, self.blocks)
 		};
-		build.apply_to(&mut tileset.grid);
 
-		map.grid = tileset.grid;
 		map.shortest_path_length = Some(
 			ShortestPath::from_entrances_to_any_core(
-				&Tileset::new(map.grid.clone()),
-				Option::<&HashSet<_>>::None,
+				&tileset,
+				Some(&build.blocks),
 				self.diagonals,
 			)
 			.into_iter()
 			.map(|path| path.map(|p| p.len()))
 			.collect(),
 		);
+
+		map.grid = tileset.grid;
+		build.apply_to(&mut map.grid);
 
 		let map_json = serde_json::to_string_pretty(&map)?;
 		if let Some(output) = self.output {

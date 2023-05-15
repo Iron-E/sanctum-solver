@@ -36,7 +36,7 @@ impl Build {
 	///
 	/// Get the longest build for a specific `tileset` by using round-robin on all of the spawn
 	/// regions.
-	pub fn from_entrances_to_any_core(tileset: &Tileset, max_blocks: Option<usize>) -> Self {
+	pub fn from_entrances_to_any_core(tileset: &Tileset, diagonals: bool, max_blocks: Option<usize>) -> Self {
 		let mut build = Build {
 			blocks: HashSet::new(),
 		};
@@ -68,6 +68,7 @@ impl Build {
 					Some(&build.blocks),
 					tileset.entrances_by_region[entrance].par_iter(),
 					Tile::Core,
+					diagonals,
 				)
 				.expect(VALID_BUILD),
 			)
@@ -87,7 +88,7 @@ impl Build {
 				) {
 					// Insert the coord now that we know it is valid.
 					build.blocks.insert(coord);
-					build.try_remove_adjacent_to(&tileset, coord);
+					build.try_remove_adjacent_to(&tileset, coord, diagonals);
 
 					// Mark the block as having been placed.
 					placements += 1;
@@ -106,6 +107,7 @@ impl Build {
 	/// path.
 	pub fn from_entrances_to_any_core_with_priority(
 		tileset: &Tileset,
+		diagonals: bool,
 		max_blocks: Option<usize>,
 	) -> Self {
 		let mut build = Build {
@@ -113,7 +115,7 @@ impl Build {
 		};
 
 		let mut shortest_paths_by_region: BTreeMap<_, _> =
-			ShortestPath::from_entrances_to_any_core(&tileset, Option::<&HashSet<_>>::None)
+			ShortestPath::from_entrances_to_any_core(&tileset, Option::<&HashSet<_>>::None, diagonals)
 				.into_iter()
 				.enumerate()
 				.map(|(index, shortest_path)| (shortest_path.expect(VALID_BUILD), index))
@@ -138,6 +140,7 @@ impl Build {
 						Some(&build.blocks),
 						tileset.entrances_by_region[region_index].par_iter(),
 						Tile::Core,
+						diagonals,
 					)
 					.expect(VALID_BUILD)
 				};
@@ -166,7 +169,7 @@ impl Build {
 				) {
 					// It was valid, so insert it.
 					build.blocks.insert(coord);
-					build.try_remove_adjacent_to(&tileset, coord);
+					build.try_remove_adjacent_to(&tileset, coord, diagonals);
 
 					// Recalculate the shortest path as well.
 					shortest_paths_by_region.insert(shortest_path!(), region_index);
@@ -192,6 +195,7 @@ impl Build {
 					Some(blocks),
 					*entrance,
 					Tile::Core,
+					false,
 				)
 				.is_some()
 			})
@@ -204,7 +208,7 @@ impl Build {
 	/// them from this [`Build`] would alter the [`ShortestPath::from_entrances_to_any_core`].
 	///
 	/// Returns `true` if an item was returned.
-	fn try_remove_adjacent_to(&mut self, tileset: &Tileset, coord: Coordinate) {
+	fn try_remove_adjacent_to(&mut self, tileset: &Tileset, coord: Coordinate, diagonals: bool) {
 		// Lazy load the expected shortest paths. We may not need to calculate it!
 		let mut expected_shortest_paths = None;
 
@@ -213,7 +217,7 @@ impl Build {
 
 		// Queue of `Adjacent`s we want to try.
 		let mut adjacent_queue = LinkedList::new();
-		adjacent_queue.push_back(Adjacent::from_grid_coordinate(&tileset.grid, &coord));
+		adjacent_queue.push_back(Adjacent::from_grid_coordinate(&tileset.grid, &coord, diagonals));
 
 		while let Some(adjacent) = adjacent_queue.pop_front() {
 			adjacent.for_each(|adjacent_coord| {
@@ -226,6 +230,7 @@ impl Build {
 						expected_shortest_paths = Some(ShortestPath::from_entrances_to_any_core(
 							&tileset,
 							Some(&self.blocks),
+							diagonals,
 						));
 					}
 
@@ -236,11 +241,13 @@ impl Build {
 							.as_ref()
 							.expect("Expected `shortest_path` to be `Some` by now"),
 						coord,
+						diagonals,
 					) {
 						// Look at adjacent coordinates to see if any of those can be removed either.
 						adjacent_queue.push_back(Adjacent::from_grid_coordinate(
 							&tileset.grid,
 							&adjacent_coord,
+							diagonals,
 						));
 					}
 				}
@@ -258,11 +265,12 @@ impl Build {
 		tileset: &Tileset,
 		expected_shortest_paths: &Vec<Option<ShortestPath>>,
 		coord: Coordinate,
+		diagonals: bool,
 	) -> bool {
 		// If the coordinate was removed (and therefore part of the build in the first place)
 		if self.blocks.remove(&coord) {
 			let actual_shortest_path =
-				ShortestPath::from_entrances_to_any_core(&tileset, Some(&self.blocks));
+				ShortestPath::from_entrances_to_any_core(&tileset, Some(&self.blocks), diagonals);
 
 			// If it changed ANYTHING about the shortest paths
 			if &actual_shortest_path != expected_shortest_paths {

@@ -27,7 +27,7 @@ mod tests {
 	use super::Coordinate;
 
 	#[test]
-	fn test_get() {
+	fn test_get_from() {
 		let array = vec![
 			vec![1, 2, 3, 4, 5],
 			vec![6, 7, 8, 9, 10],

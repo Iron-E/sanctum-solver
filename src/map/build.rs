@@ -71,10 +71,6 @@ impl Build {
 			.filter(|coord| {
 				coord.get_from(&tileset.grid).expect(COORDINATE_ON_TILESET) == Tile::Empty
 			}) {
-				if build.blocks.contains(&coord) {
-					continue;
-				}
-
 				build.blocks.insert(coord);
 
 				if build.is_valid_for(&tileset) {

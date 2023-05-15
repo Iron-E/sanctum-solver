@@ -5,7 +5,7 @@ pub use error::{Error, Result};
 use {
 	super::{Adjacent, Coordinate, Tile},
 	serde::{Deserialize, Serialize},
-	std::collections::{HashSet, LinkedList},
+	std::collections::{HashMap, HashSet, LinkedList},
 };
 
 pub const COORDINATE_ON_TILESET: &str = "Expected to visit coordinate which exists on tileset.";
@@ -61,13 +61,13 @@ impl Tileset {
 		let start_tile = start.get_from(&self.0).expect(COORDINATE_ON_TILESET);
 
 		let mut coordinate_queue = LinkedList::new();
-		let mut visited = HashSet::new();
+		let mut visited = HashMap::new();
 
 		coordinate_queue.push_back(start);
 
 		while let Some(coord) = coordinate_queue.pop_front() {
 			// Don't revisit a coordinate we've already been to.
-			if visited.contains(&coord) {
+			if visited.contains_key(&coord) {
 				continue;
 			}
 
@@ -75,7 +75,7 @@ impl Tileset {
 			let tile = coord.get_from(&self.0).expect(COORDINATE_ON_TILESET);
 
 			// We shouldn't count a coordinate as 'visited' until we can extract its tile value.
-			visited.insert(coord);
+			visited.insert(coord, tile);
 
 			// These are the tiles which we want to keep looking beyond.
 			if (start_tile.is_region() && tile == start_tile)
@@ -89,7 +89,8 @@ impl Tileset {
 		// Whatever we visited which was an `Empty` tile, return.
 		visited
 			.into_iter()
-			.filter(|coord| coord.get_from(&self.0).expect(COORDINATE_ON_TILESET) == needle)
+			.filter(|(_, tile)| tile == &needle)
+			.map(|(coord, _)| coord)
 			.collect()
 	}
 

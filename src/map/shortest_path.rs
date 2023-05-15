@@ -4,13 +4,16 @@ use {
 		Adjacent, Build, Coordinate, Tile,
 	},
 	serde::{Deserialize, Serialize},
-	std::collections::{HashMap, LinkedList},
+	std::{
+		cmp::Ordering,
+		collections::{HashMap, LinkedList},
+	},
 };
 
 /// # Summary
 ///
 /// A two-dimensional array / grid of [`Tile`]s.
-#[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct ShortestPath(Vec<Coordinate>);
 
 impl ShortestPath {
@@ -91,7 +94,7 @@ impl ShortestPath {
 		}
 
 		let mut coordinate_path_queue = LinkedList::new();
-		let mut visited = HashMap::<Coordinate, Vec<Coordinate>>::new();
+		let mut visited = HashMap::<Coordinate, usize>::new();
 
 		coordinate_path_queue.push_back((start, vec![start]));
 
@@ -99,7 +102,7 @@ impl ShortestPath {
 			// If the current path is longer than the previous path (defaulting to `false` if there
 			// is no previous path).
 			if match visited.get(&coord) {
-				Some(visited_path) => current_path.len() >= visited_path.len(),
+				Some(visited_path_len) => &current_path.len() >= visited_path_len,
 				_ => false,
 			} {
 				continue;
@@ -128,7 +131,7 @@ impl ShortestPath {
 			}
 
 			// Now that the current coordinate has been fully evaluated, mark it as visited.
-			visited.insert(coord, current_path);
+			visited.insert(coord, current_path.len());
 		}
 
 		None
@@ -138,6 +141,18 @@ impl ShortestPath {
 impl From<ShortestPath> for Vec<Coordinate> {
 	fn from(other: ShortestPath) -> Self {
 		other.0
+	}
+}
+
+impl Ord for ShortestPath {
+	fn cmp(&self, other: &Self) -> Ordering {
+		self.0.len().cmp(&other.0.len())
+	}
+}
+
+impl PartialOrd for ShortestPath {
+	fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+		self.0.len().partial_cmp(&other.0.len())
 	}
 }
 

@@ -1,10 +1,16 @@
+mod error;
+
+pub use error::{Error, Result};
+
 use {
 	super::{Adjacent, Coordinate, Tile},
 	serde::{Deserialize, Serialize},
 	std::collections::{HashMap, HashSet},
 };
 
-const COORDINATE_NOT_ON_TILESET: &str = "Tried to visit non-existing coordiante";
+const COORDINATE_ON_TILESET: &str = "Expected to visit coordinate which exists on tileset.";
+const IS_REGION: &str = "Expected to separate tiles which are regions.";
+const REGION_HAS_COORDINATE: &str = "Expected the region to have at least one coordinate.";
 
 /// # Summary
 ///
@@ -16,46 +22,45 @@ impl Tileset {
 	/// # Summary
 	///
 	/// Select all of the [`Tile::Empty`]s next to [`Tile::Spawn`] points on this [`Tileset`].
-	pub fn entrances(&self) -> HashSet<Coordinate> {
-		self.get_all_adjacent_to(Tile::Empty, Tile::Spawn)
-	}
-
-	/// # Summary
-	///
-	/// Select all of the [`Tile::Empty`]s next to [`Tile::Core`] points on this [`Tileset`].
-	pub fn exits(&self) -> HashSet<Coordinate> {
-		self.get_all_adjacent_to(Tile::Empty, Tile::Core)
-	}
-
-	/// # Summary
-	///
-	/// Return a [set](HashSet) of every specific [`Tile`] in the [`Tileset`].
-	///
-	/// # Remarks
-	///
-	/// Iterates over each row and row-value of the [`Self::tileset`], filtering out those which are
-	/// not the same value as `tile`.
-	pub fn get_all(&self, tile: &Tile) -> HashSet<Coordinate> {
-		self.0
-			.iter()
-			.enumerate()
-			.flat_map(|(y, row)| {
-				row.iter().enumerate().filter_map(move |(x, value)| {
-					if value == tile {
-						Some(Coordinate(x, y))
-					} else {
-						None
-					}
-				})
+	pub fn entrances(&self) -> Vec<HashSet<Coordinate>> {
+		self.separate_regions(Tile::Spawn)
+			.expect(IS_REGION)
+			.into_iter()
+			.map(|region| {
+				// get a random point on the region and look for adjacent empty tiles
+				self.get_adjacent_to(
+					region.into_iter().next().expect(REGION_HAS_COORDINATE),
+					Tile::Empty,
+				)
 			})
 			.collect()
 	}
 
 	/// # Summary
 	///
-	/// Get all `end_tile`s adjacent to `start_tile`.
-	fn get_all_adjacent_to(&self, end_tile: Tile, start_tile: Tile) -> HashSet<Coordinate> {
-		let mut coordinate_queue: Vec<Coordinate> = self.get_all(&start_tile).into_iter().collect();
+	/// Select all of the [`Tile::Empty`]s next to [`Tile::Core`] points on this [`Tileset`].
+	pub fn exits(&self) -> Vec<HashSet<Coordinate>> {
+		self.separate_regions(Tile::Core)
+			.expect(IS_REGION)
+			.into_iter()
+			.map(|region| {
+				// get a random point on the region and look for adjacent empty tiles
+				self.get_adjacent_to(
+					region.into_iter().next().expect(REGION_HAS_COORDINATE),
+					Tile::Empty,
+				)
+			})
+			.collect()
+	}
+
+	/// # Summary
+	///
+	/// Get the adjacent [`Tile`]s of `needle`'s type which are adjecent to the `start`ing
+	/// [`Coordinate`].
+	fn get_adjacent_to(&self, start: Coordinate, needle: Tile) -> HashSet<Coordinate> {
+		let start_tile = start.get_from(&self.0).expect(COORDINATE_ON_TILESET);
+
+		let mut coordinate_queue = vec![start];
 		let mut visited = HashSet::new();
 
 		while let Some(coord) = coordinate_queue.pop() {
@@ -65,18 +70,16 @@ impl Tileset {
 			}
 
 			// All of the coordinates from `select` should exist in the `tileset`.
-			let tile = coord.get_from(&self.0).expect(COORDINATE_NOT_ON_TILESET);
+			let tile = coord.get_from(&self.0).expect(COORDINATE_ON_TILESET);
 
 			// We shouldn't count a coordinate as 'visited' until we can extract its tile value.
 			visited.insert(coord);
 
 			// These are the tiles which we want to keep looking beyond.
 			if (start_tile.is_region() && tile == start_tile)
-				|| (tile.is_passable() && tile != end_tile)
+				|| (tile.is_passable() && tile != needle)
 			{
 				Adjacent::<Coordinate>::from_array_coordinate(&self.0, &coord)
-					.into_iter()
-					.flatten()
 					.for_each(|adjacent| coordinate_queue.push(adjacent));
 			}
 		}
@@ -84,18 +87,28 @@ impl Tileset {
 		// Whatever we visited which was an `Empty` tile, return.
 		visited
 			.into_iter()
-			.filter(|coord| coord.get_from(&self.0).expect(COORDINATE_NOT_ON_TILESET) == end_tile)
+			.filter(|coord| coord.get_from(&self.0).expect(COORDINATE_ON_TILESET) == needle)
 			.collect()
 	}
 
 	/// # Summary
 	///
-	/// Get all `end_tile`s nearest to `start_tile`.
-	fn get_all_nearest_to(&self, end_tile: Tile, start: Coordinate) -> HashSet<Coordinate> {
-		let mut coordinate_distance_queue: Vec<(Coordinate, usize)> = vec![(start, 0)];
-		let mut visited = HashMap::new();
+	/// Get the [`Tile`] of `needle`'s type which is nearest to the `start`ing [`Coordinate`].
+	///
+	/// # Remarks
+	///
+	/// If multiple candidates are found to be of the same distance, they will all be returned.
+	fn get_nearest(&self, start: Coordinate, needle: Tile) -> Result<HashSet<Coordinate>> {
+		let start_tile = start.get_from(&self.0).expect(COORDINATE_ON_TILESET);
 
-		let start_tile = start.get_from(&self.0).expect(COORDINATE_NOT_ON_TILESET);
+		// We don't want to start the search on a tile which cannot be walked over.
+		// This is to prevent accidentally crossing over the other side of a barrier.
+		if !start_tile.is_passable() {
+			return Err(Error::CannotPass { tile: start_tile });
+		}
+
+		let mut coordinate_distance_queue = vec![(start, 0)];
+		let mut visited = HashMap::new();
 
 		while let Some((coord, distance)) = coordinate_distance_queue.pop() {
 			// Don't revisit a coordinate we've already been to.
@@ -107,39 +120,96 @@ impl Tileset {
 			}
 
 			// All of the coord_distanceinates from `select` should exist in the `tileset`.
-			let tile = coord.get_from(&self.0).expect(COORDINATE_NOT_ON_TILESET);
+			let tile = coord.get_from(&self.0).expect(COORDINATE_ON_TILESET);
 
 			// We shouldn't count a coord_distanceinate as 'visited' until we can extract its tile value.
 			visited.insert(coord, distance);
 
 			// These are the tiles which we want to keep looking beyond.
-			if (start_tile.is_region() && tile == start_tile)
-				|| (tile.is_passable() && tile != end_tile)
-			{
+			if tile.is_passable() && tile != needle {
 				Adjacent::<Coordinate>::from_array_coordinate(&self.0, &coord)
-					.into_iter()
-					.flatten()
 					.for_each(|adjacent| coordinate_distance_queue.push((adjacent, distance + 1)));
 			}
 		}
 
-		let mut distances: Vec<(Coordinate, usize)> = visited
-			.into_iter()
-			.filter(|(c, _)| c.get_from(&self.0).expect(COORDINATE_NOT_ON_TILESET) == end_tile)
-			.collect();
-
-		distances.sort_by_key(|(_, d)| *d);
-
-		let shortest_distance = match distances.first() {
-			Some((_, distance)) => *distance,
-			_ => return HashSet::new(),
+		let shortest_distance = match visited
+			.iter()
+			.filter(|(c, _)| c.get_from(&self.0).expect(COORDINATE_ON_TILESET) == needle)
+			.reduce(|visit, other_visit| {
+				if visit.1 > other_visit.1 {
+					other_visit
+				} else {
+					visit
+				}
+			}) {
+			Some(visit) => *visit.1,
+			_ => return Ok(HashSet::new()),
 		};
 
-		distances
+		Ok(visited
 			.into_iter()
-			.take_while(|(_, d)| d == &shortest_distance)
-			.map(|(c, _)| c)
-			.collect()
+			.filter_map(|(c, d)| {
+				if d == shortest_distance
+					&& c.get_from(&self.0).expect(COORDINATE_ON_TILESET) == needle
+				{
+					Some(c)
+				} else {
+					None
+				}
+			})
+			.collect())
+	}
+
+	/// # Summary
+	///
+	/// Get all of the different regions for some type of `tile`.
+	fn separate_regions(&self, start_tile: Tile) -> Result<Vec<HashSet<Coordinate>>> {
+		if !start_tile.is_region() {
+			return Err(Error::NotRegion { tile: start_tile });
+		}
+
+		let mut buckets = Vec::<HashSet<Coordinate>>::new();
+
+		let get_region = |start: Coordinate| -> HashSet<Coordinate> {
+			let mut coordinate_queue = vec![start];
+			let mut visited = HashSet::new();
+
+			while let Some(coord) = coordinate_queue.pop() {
+				// Don't revisit a coordinate we've already been to.
+				if visited.contains(&coord) {
+					continue;
+				}
+
+				// All of the coordinates from `select` should exist in the `tileset`.
+				let tile = coord.get_from(&self.0).expect(COORDINATE_ON_TILESET);
+
+				// These are the tiles which we want to keep looking beyond.
+				if tile == start_tile {
+					// We shouldn't count a coordinate as 'visited' until we can extract its tile value.
+					visited.insert(coord);
+
+					Adjacent::<Coordinate>::from_array_coordinate(&self.0, &coord)
+						.for_each(|adjacent| coordinate_queue.push(adjacent));
+				}
+			}
+
+			// Whatever we visited which was an `Empty` tile, return.
+			visited
+		};
+
+		self.0.iter().enumerate().for_each(|(y, row)| {
+			row.iter()
+				.enumerate()
+				.filter(|(_, row_value)| *row_value == &start_tile)
+				.for_each(|(x, _)| {
+					let coord = Coordinate(x, y);
+					if buckets.iter().all(|set| !set.contains(&coord)) {
+						buckets.push(get_region(Coordinate(x, y)))
+					}
+				})
+		});
+
+		Ok(buckets)
 	}
 }
 
@@ -147,7 +217,7 @@ impl Tileset {
 mod tests {
 	use {
 		super::{Coordinate, Tile, Tile::*, Tileset},
-		std::{collections::HashSet, time::Instant},
+		std::time::Instant,
 	};
 
 	/// # Summary
@@ -187,9 +257,10 @@ mod tests {
 			Instant::now().duration_since(start).as_micros()
 		);
 
+		assert_eq!(entrances.len(), 1);
 		assert_eq!(
-			entrances,
-			[
+			entrances.first().unwrap(),
+			&[
 				Coordinate(4, 1),
 				Coordinate(4, 2),
 				Coordinate(4, 3),
@@ -216,9 +287,10 @@ mod tests {
 			Instant::now().duration_since(start).as_micros()
 		);
 
+		assert_eq!(exits.len(), 1);
 		assert_eq!(
-			exits,
-			[
+			exits.first().unwrap(),
+			&[
 				Coordinate(4, 9),
 				Coordinate(5, 9),
 				Coordinate(6, 9),
@@ -235,80 +307,49 @@ mod tests {
 	}
 
 	#[test]
-	fn get_all() {
-		let park = Tileset(
-			PARK.iter()
-				.map(|row| row.iter().copied().collect())
-				.collect(),
-		);
+	fn separate_regions() {
+		#[rustfmt::skip]
+		let test = Tileset(vec![
+			//   0       1       2       3       4
+			vec![Impass, Impass, Impass, Impass, Impass], // 0
+			vec![Impass, Empty,  Empty,  Spawn,  Impass], // 1
+			vec![Impass, Empty,  Empty,  Spawn,  Impass], // 2
+			vec![Impass, Empty,  Empty,  Empty,  Impass], // 3
+			vec![Impass, Empty,  Empty,  Empty,  Impass], // 4
+			vec![Impass, Spawn,  Empty,  Core,   Impass], // 5
+			vec![Impass, Spawn,  Empty,  Core,   Impass], // 6
+			vec![Impass, Impass, Impass, Impass, Impass], // 7
+		]);
 
-		let start = Instant::now();
-		let impasses = park.get_all(&Tile::Impass);
-		println!(
-			"Tileset::select {}us",
-			Instant::now().duration_since(start).as_micros()
-		);
-
+		let core_regions = test.separate_regions(Tile::Core).unwrap();
+		assert_eq!(core_regions.len(), 1);
 		assert_eq!(
-			impasses,
-			[
-				(0, 0),
-				(0, 10),
-				(0, 11),
-				(0, 12),
-				(0, 13),
-				(0, 5),
-				(0, 6),
-				(0, 7),
-				(0, 8),
-				(0, 9),
-				(1, 0),
-				(1, 10),
-				(1, 11),
-				(1, 12),
-				(1, 13),
-				(1, 5),
-				(1, 6),
-				(1, 7),
-				(1, 8),
-				(1, 9),
-				(10, 0),
-				(10, 1),
-				(10, 2),
-				(11, 12),
-				(14, 9),
-				(2, 0),
-				(2, 10),
-				(2, 11),
-				(2, 12),
-				(2, 13),
-				(2, 5),
-				(2, 6),
-				(2, 7),
-				(2, 8),
-				(2, 9),
-				(3, 0),
-				(3, 10),
-				(3, 11),
-				(3, 12),
-				(3, 13),
-				(3, 5),
-				(3, 6),
-				(3, 7),
-				(3, 8),
-				(3, 9),
-				(4, 0),
-				(5, 0),
-				(6, 0),
-				(7, 0),
-				(8, 0),
-				(9, 0),
-				(9, 1),
-				(9, 2),
-			]
-			.iter()
-			.map(|c| Coordinate(c.0, c.1))
-			.collect::<HashSet<Coordinate>>(),
+			core_regions[0],
+			[Coordinate(3, 5), Coordinate(3, 6)]
+				.iter()
+				.copied()
+				.collect()
+		);
+
+		// Can't get a non-region.
+		let impass_regions = test.separate_regions(Tile::Impass);
+		assert!(impass_regions.is_err());
+
+		let spawn_regions = test.separate_regions(Tile::Spawn).unwrap();
+		assert_eq!(spawn_regions.len(), 2);
+		assert_eq!(
+			spawn_regions[0],
+			[Coordinate(3, 1), Coordinate(3, 2)]
+				.iter()
+				.copied()
+				.collect()
+		);
+		assert_eq!(
+			spawn_regions[1],
+			[Coordinate(1, 5), Coordinate(1, 6)]
+				.iter()
+				.copied()
+				.collect()
 		);
 	}
 }

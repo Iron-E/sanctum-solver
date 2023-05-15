@@ -54,7 +54,10 @@ impl App {
 			ShortestPath::from_entrances_to_any_core(
 				&Tileset::new(map.grid.clone()),
 				Option::<&HashSet<_>>::None,
-			).into_iter().map(|path| path.and_then(|p| Some(p.len()))).collect()
+			)
+			.into_iter()
+			.map(|path| path.map(|p| p.len()))
+			.collect(),
 		);
 
 		let map_json = serde_json::to_string_pretty(&map)?;

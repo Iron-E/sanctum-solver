@@ -54,13 +54,13 @@ impl Adjacent<Coordinate> {
 	/// # Summary
 	///
 	/// Get the adjacent [`Coordinate`]s to a `coordinate` on an `array`.
-	pub fn from_grid_coordinate<T>(grid: &[impl AsRef<[T]>], coord: &Coordinate) -> Self {
+	pub fn from_grid_coordinate<T>(grid: &[impl AsRef<[T]>], coord: &Coordinate, diagonals: bool) -> Self {
 		/// # Summary
 		///
 		/// If `$cond` is `true`, then return `Some($value)`. Otherwise, return `None`.
 		macro_rules! if_then_or_none {
-			($cond: expr, $value: expr) => {
-				if $cond {
+			($($cond: expr)+, $value: expr) => {
+				if $($cond)&&* {
 					Some($value)
 				} else {
 					None
@@ -80,19 +80,19 @@ impl Adjacent<Coordinate> {
 			left: if_then_or_none!(can_move_left, Coordinate(coord.0 - 1, coord.1)),
 
 			up_right: if_then_or_none!(
-				can_move_up && can_move_right,
+				can_move_up can_move_right diagonals,
 				Coordinate(coord.0 + 1, coord.1 - 1)
 			),
 			down_right: if_then_or_none!(
-				can_move_down && can_move_right,
+				can_move_down can_move_right diagonals,
 				Coordinate(coord.0 + 1, coord.1 + 1)
 			),
 			down_left: if_then_or_none!(
-				can_move_down && can_move_left,
+				can_move_down can_move_left diagonals,
 				Coordinate(coord.0 - 1, coord.1 + 1)
 			),
 			up_left: if_then_or_none!(
-				can_move_up && can_move_left,
+				can_move_up can_move_left diagonals,
 				Coordinate(coord.0 - 1, coord.1 - 1)
 			),
 		}
@@ -102,28 +102,9 @@ impl Adjacent<Coordinate> {
 		grid: &[impl AsRef<[Tile]>],
 		build: Option<&impl Container<Coordinate>>,
 		coord: &Coordinate,
+		diagonals: bool,
 	) -> Self {
-		let mut adjacent = Self::from_grid_coordinate(grid, coord);
-
-		/// # Summary
-		///
-		/// Determine if the `$direction` can be moved to.
-		macro_rules! can_move_to {
-			($direction: expr) => {
-				$direction
-					.map(|d| {
-						d.get_from_with_build(&grid, build)
-							.expect(COORDINATE_ON_TILESET)
-							.is_passable()
-					})
-					.unwrap_or(false)
-			};
-		}
-
-		let can_move_up = can_move_to!(adjacent.up);
-		let can_move_right = can_move_to!(adjacent.right);
-		let can_move_down = can_move_to!(adjacent.down);
-		let can_move_left = can_move_to!(adjacent.left);
+		let mut adjacent = Self::from_grid_coordinate(grid, coord, diagonals);
 
 		/// # Summary
 		///
@@ -134,17 +115,34 @@ impl Adjacent<Coordinate> {
 		/// We don't set it to `Impass` or `Block`, because `None`s are ignored by `for_each`.
 		/// Therefore we get a performance improvement.
 		macro_rules! if_then_none {
-			($($cond: expr)*, $field: ident) => {
+			($($cond: expr)+, $field: ident) => {
 				if $(!$cond)&&* {
 					adjacent.$field = None;
 				}
 			};
 		}
 
-		if_then_none!(can_move_up can_move_right, up_right);
-		if_then_none!(can_move_down can_move_right, down_right);
-		if_then_none!(can_move_down can_move_left, down_left);
-		if_then_none!(can_move_up can_move_left, up_left);
+		if diagonals {
+			let can_move_to = |direction: Option<Coordinate>| -> bool {
+				direction
+					.map(|d| {
+						d.get_from_with_build(&grid, build)
+							.expect(COORDINATE_ON_TILESET)
+							.is_passable()
+					})
+					.unwrap_or(false)
+			};
+
+			let can_move_up = can_move_to(adjacent.up);
+			let can_move_right = can_move_to(adjacent.right);
+			let can_move_down = can_move_to(adjacent.down);
+			let can_move_left = can_move_to(adjacent.left);
+
+			if_then_none!(can_move_up can_move_right, up_right);
+			if_then_none!(can_move_down can_move_right, down_right);
+			if_then_none!(can_move_down can_move_left, down_left);
+			if_then_none!(can_move_up can_move_left, up_left);
+		}
 
 		adjacent
 	}
@@ -174,7 +172,7 @@ mod tests {
 
 		// Normal adjacency; no special cases
 		assert_eq!(
-			Adjacent::from_grid_coordinate(&ARRAY, &Coordinate(2, 2)),
+			Adjacent::from_grid_coordinate(&ARRAY, &Coordinate(2, 2), true),
 			Adjacent {
 				up: Some(Coordinate(2, 1)),
 				up_right: Some(Coordinate(3, 1)),
@@ -189,7 +187,7 @@ mod tests {
 
 		// Nothing to the top.
 		assert_eq!(
-			Adjacent::from_grid_coordinate(&ARRAY, &Coordinate(2, 0)),
+			Adjacent::from_grid_coordinate(&ARRAY, &Coordinate(2, 0), true),
 			Adjacent {
 				up: None,
 				up_right: None,
@@ -204,7 +202,7 @@ mod tests {
 
 		// Nothing to the right.
 		assert_eq!(
-			Adjacent::from_grid_coordinate(&ARRAY, &Coordinate(4, 3)),
+			Adjacent::from_grid_coordinate(&ARRAY, &Coordinate(4, 3), true),
 			Adjacent {
 				up: Some(Coordinate(4, 2)),
 				up_right: None,
@@ -219,7 +217,7 @@ mod tests {
 
 		// Nothing to the bottom.
 		assert_eq!(
-			Adjacent::from_grid_coordinate(&ARRAY, &Coordinate(3, 4)),
+			Adjacent::from_grid_coordinate(&ARRAY, &Coordinate(3, 4), true),
 			Adjacent {
 				up: Some(Coordinate(3, 3)),
 				right: Some(Coordinate(4, 4)),
@@ -235,7 +233,7 @@ mod tests {
 
 		// Nothing to the left.
 		assert_eq!(
-			Adjacent::from_grid_coordinate(&ARRAY, &Coordinate(0, 2)),
+			Adjacent::from_grid_coordinate(&ARRAY, &Coordinate(0, 2), true),
 			Adjacent {
 				up: Some(Coordinate(0, 1)),
 				right: Some(Coordinate(1, 2)),
@@ -269,6 +267,7 @@ mod tests {
 			&ARRAY,
 			Some(&build.blocks),
 			&Coordinate(2, 2),
+			true,
 		);
 		println!(
 			"Adjacent::from_grid_coordinate_with_build {}us",

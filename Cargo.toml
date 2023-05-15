@@ -15,9 +15,6 @@ readme = "./README.md"
 # Arguments
 structopt = "0.3"
 
-# Dialogues
-dialoguer = "0.7"
-
 # Errors
 snafu = "0.6"
 

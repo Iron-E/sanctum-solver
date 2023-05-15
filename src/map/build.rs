@@ -208,23 +208,11 @@ impl Build {
 				let actual_shortest_path =
 					ShortestPath::from_entrances_to_any_core(&tileset, Some(&self));
 
-				if !actual_shortest_path
-					.into_iter()
-					.zip(
-						expected_shortest_path
-							.as_ref()
-							.expect("`expected_shortest_path` should be `Some` by now"),
-					)
-					.all(|(actual, expected)| {
-						&actual == expected
-							|| match actual {
-								Some(a) => a.len(),
-								_ => 0,
-							} > match expected {
-								Some(e) => e.len(),
-								_ => 0,
-							}
-					}) {
+				if &actual_shortest_path
+					!= expected_shortest_path
+						.as_ref()
+						.expect("Expected `shortest_path` to be `Some` by now")
+				{
 					self.blocks.insert(adjacent);
 				}
 			}

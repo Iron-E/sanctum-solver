@@ -3,6 +3,7 @@ use {
 		tileset::{Tileset, COORDINATE_ON_TILESET},
 		Adjacent, Build, Coordinate, Tile,
 	},
+	rayon::iter::{IntoParallelRefIterator, ParallelIterator},
 	serde::{Deserialize, Serialize},
 	std::{
 		cmp::Ordering,
@@ -42,15 +43,15 @@ impl ShortestPath {
 	/// * `Some(ShortestPath)` if there is a [`ShortestPath`].
 	/// * `None` if there is no [`ShortestPath`].
 	pub fn from_any_grid_coordinate_to_tile<'coord>(
-		grid: &[impl AsRef<[Tile]>],
+		grid: &[impl AsRef<[Tile]> + Send + Sync],
 		build: Option<&Build>,
-		start_points: impl Iterator<Item = &'coord Coordinate>,
+		start_points: impl ParallelIterator<Item = &'coord Coordinate>,
 		end_tile: Tile,
 	) -> Option<Self> {
 		start_points
 			.map(|coord| ShortestPath::from_grid_coordinate_to_tile(&grid, build, *coord, end_tile))
 			.flatten()
-			.reduce(ShortestPath::return_shorter)
+			.reduce_with(ShortestPath::return_shorter)
 	}
 
 	/// # Summary
@@ -62,12 +63,12 @@ impl ShortestPath {
 	) -> Vec<Option<Self>> {
 		tileset
 			.entrances_by_region
-			.iter()
+			.par_iter()
 			.map(|entrances| {
 				ShortestPath::from_any_grid_coordinate_to_tile(
 					&tileset.grid,
 					build,
-					entrances.iter(),
+					entrances.par_iter(),
 					Tile::Core,
 				)
 			})
@@ -166,6 +167,7 @@ mod tests {
 	use {
 		super::{Coordinate, ShortestPath, Tile, Tileset, COORDINATE_ON_TILESET},
 		crate::map::tileset::tests::{PARK, PARK_TWO_SPAWN},
+		rayon::iter::IntoParallelRefIterator,
 		std::time::Instant,
 	};
 
@@ -202,7 +204,7 @@ mod tests {
 				ShortestPath::from_any_grid_coordinate_to_tile(
 					&test_tileset.grid,
 					None,
-					entrances.iter(),
+					entrances.par_iter(),
 					Tile::Core,
 				)
 			})
@@ -214,14 +216,19 @@ mod tests {
 				/ (test_tileset.entrances_by_region.len() as u128)
 		);
 
-		// The above should be equal to `from_entrances_to_any_exit`.
-		assert_eq!(
-			test_paths,
+		let start = Instant::now();
+		let test_from_entrances_to_any_core =
 			ShortestPath::from_entrances_to_any_core(&test_tileset, None)
 				.into_iter()
 				.flatten()
-				.collect::<Vec<_>>()
+				.collect::<Vec<_>>();
+		println!(
+			"ShortestPath::from_entrances_to_any_core {}us",
+			Instant::now().duration_since(start).as_micros()
 		);
+
+		// The above should be equal to `from_entrances_to_any_exit`.
+		assert_eq!(test_paths, test_from_entrances_to_any_core,);
 
 		// There should be two paths to the core since there are two spawn points.
 		assert_eq!(test_paths.len(), 2);

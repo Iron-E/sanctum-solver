@@ -3,6 +3,7 @@ use {
 		tileset::{Tileset, COORDINATE_ON_TILESET},
 		Adjacent, Coordinate, ShortestPath, Tile,
 	},
+	rayon::iter::IntoParallelRefIterator,
 	serde::{Deserialize, Serialize},
 	std::collections::{BTreeMap, HashSet, LinkedList},
 };
@@ -61,7 +62,7 @@ impl Build {
 				ShortestPath::from_any_grid_coordinate_to_tile(
 					&tileset.grid,
 					Some(&build),
-					tileset.entrances_by_region[entrance].iter(),
+					tileset.entrances_by_region[entrance].par_iter(),
 					Tile::Core,
 				)
 				.expect(VALID_BUILD),
@@ -126,7 +127,7 @@ impl Build {
 					ShortestPath::from_any_grid_coordinate_to_tile(
 						&tileset.grid,
 						Some(&build),
-						tileset.entrances_by_region[region_index].iter(),
+						tileset.entrances_by_region[region_index].par_iter(),
 						Tile::Core,
 					)
 					.expect(VALID_BUILD)

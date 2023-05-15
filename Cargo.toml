@@ -18,6 +18,9 @@ structopt = "0.3"
 # Errors
 snafu = "0.6"
 
+# Parallel
+rayon = "1"
+
 # Serialization
 serde = {features=["derive"], version="1"}
 serde_json = "1"

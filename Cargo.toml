@@ -1,0 +1,26 @@
+# See https://doc.rust-lang.org/cargo/reference/manifest.html
+[package]
+name = "sanctum-solver"
+version = "0.1.0"
+authors = ["AllMyJokesArgon"]
+description = "Find the most efficient build for a Sanctum map."
+
+categories = ["algorithms", "command-line-utilities", "simulation"]
+edition = "2018"
+keywords = ["coffee stain studios", "fps", "longest", "maze", "path", "rts", "sanctum"]
+license = "GPL3"
+readme = "./README.md"
+
+[dependencies]
+# Arguments
+structopt = "0.3"
+
+# Dialogues
+dialoguer = "0.7"
+
+# Errors
+snafu = "0.6"
+
+# Serialization
+serde = "1"
+serde_json = "1"

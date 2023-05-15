@@ -22,6 +22,19 @@ impl Coordinate {
 
 		None
 	}
+
+	/// # Summary
+	///
+	/// Set the `T` value stored at the [`Coordinate`] in array.
+	///
+	/// # Panics
+	///
+	/// If `array[self.1][self.0]` is out of bounds.
+	pub fn set<T>(&self, array: &mut [impl AsMut<[T]>], value: T) {
+		if let Some(inner) = array.get_mut(self.1) {
+			inner.as_mut()[self.0] = value
+		}
+	}
 }
 
 #[cfg(test)]

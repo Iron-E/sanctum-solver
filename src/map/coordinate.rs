@@ -1,7 +1,9 @@
+use serde::{Deserialize, Serialize};
+
 /// # Summary
 ///
 /// A __(__`x`__,__ `y`__)__ tuple which refers to coordinates in a two-dimensional array.
-#[derive(Copy, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Copy, Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct Coordinate(pub usize, pub usize);
 
 impl Coordinate {

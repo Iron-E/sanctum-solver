@@ -18,7 +18,10 @@ use {
 ///
 /// A two-dimensional array / grid of [`Tile`]s.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
-pub struct ShortestPath(Vec<Coordinate>);
+pub struct ShortestPath {
+	path: Vec<Coordinate>,
+	start_distance: Option<usize>,
+}
 
 impl ShortestPath {
 	/// # Summary
@@ -26,7 +29,7 @@ impl ShortestPath {
 	/// Return the [`Tile::Core`] which this [`ShortestPath`] navigates to.
 	pub fn core(&self) -> Coordinate {
 		*self
-			.0
+			.path
 			.last()
 			.expect("Expected this `ShortestPath` to have at least 1 coordinate")
 	}
@@ -40,17 +43,17 @@ impl ShortestPath {
 	///
 	/// * `Some(ShortestPath)` if there is a [`ShortestPath`].
 	/// * `None` if there is no [`ShortestPath`].
-	pub fn from_any_grid_coordinate_to_tile<'coord>(
+	pub fn from_any_grid_coordinate_to_tile<'coord, 'distance>(
 		grid: &[impl AsRef<[Tile]> + Send + Sync],
 		build: Option<&impl Container<Coordinate>>,
-		start_points: impl ParallelIterator<Item = &'coord Coordinate>,
+		start_points: impl ParallelIterator<Item = (&'coord Coordinate, &'distance usize)>,
 		end_tile: Tile,
 		diagonals: bool,
 	) -> Option<Self> {
 		start_points
-			.map(|coord| {
+			.map(|(coord, start_distance)| {
 				ShortestPath::from_grid_coordinate_to_tile(
-					&grid, build, *coord, end_tile, diagonals,
+					&grid, build, *coord, Some(*start_distance), end_tile, diagonals,
 				)
 			})
 			.flatten()
@@ -87,6 +90,7 @@ impl ShortestPath {
 		grid: &[impl AsRef<[Tile]>],
 		build: Option<&impl Container<Coordinate>>,
 		start: Coordinate,
+		start_distance: Option<usize>,
 		end_point: Tile,
 		diagonals: bool,
 	) -> Option<Self> {
@@ -121,7 +125,7 @@ impl ShortestPath {
 
 			// Using BFS, so if the `tile` is the `end_tile` we've found the shortest path.
 			if tile == end_point {
-				return Some(ShortestPath(current_path));
+				return Some(ShortestPath {path: current_path, start_distance});
 			}
 			// Only keep looking beyond a passable tile, and if the current tile is not what we're
 			// searching for.
@@ -147,7 +151,7 @@ impl ShortestPath {
 	///
 	/// The length of the path.
 	pub fn len(&self) -> usize {
-		self.0.len()
+		self.path.len() + self.start_distance.unwrap_or(0)
 	}
 
 	/// # Summary
@@ -167,7 +171,7 @@ impl ShortestPath {
 
 impl From<ShortestPath> for Vec<Coordinate> {
 	fn from(other: ShortestPath) -> Self {
-		other.0
+		other.path
 	}
 }
 
@@ -196,13 +200,13 @@ mod tests {
 		// Since there may be multiple ways to do this we aren't going to test it
 		// directly, rather we're going to assert things about the path instead.
 		assert_eq!(paths[index].len(), desired_len);
-		assert!(paths[index].0[0..(desired_len - 1)]
+		assert!(paths[index].path[0..(desired_len - 1)]
 			.iter()
 			.all(|coord| coord
 				.get_from(&tileset.grid)
 				.expect(COORDINATE_ON_TILESET)
 				.is_passable()));
-		assert!(paths[index].0[desired_len - 1]
+		assert!(paths[index].path[desired_len - 1]
 			.get_from(&tileset.grid)
 			.expect(COORDINATE_ON_TILESET)
 			.is_region());
@@ -273,11 +277,14 @@ mod tests {
 				.collect(),
 		);
 
+		let entrance = test_tileset.entrances_by_region.first().unwrap().get_key_value(&Coordinate(4, 4)).unwrap();
+
 		let start = Instant::now();
 		let test_path = ShortestPath::from_grid_coordinate_to_tile(
 			&test_tileset.grid,
 			Option::<&HashSet<_>>::None,
-			Coordinate(4, 4),
+			*entrance.0,
+			Some(*entrance.1),
 			Tile::Core,
 			true,
 		)

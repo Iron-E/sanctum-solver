@@ -217,11 +217,12 @@ impl Build {
 		// A valid build only contains coordinates which are for `Empty` tiles
 		tileset.entrances_by_region.iter().all(|region| {
 			// Additionally, there should be at least one entrance in every region which has a path to a core.
-			region.iter().any(|entrance| {
+			region.keys().any(|entrance| {
 				ShortestPath::from_grid_coordinate_to_tile(
 					&tileset.grid,
 					Some(blocks),
 					*entrance,
+					None,
 					Tile::Core,
 					false,
 				)

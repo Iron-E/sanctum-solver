@@ -54,64 +54,23 @@ mod tests {
 	/// # Summary
 	///
 	/// A representation of the map _Park_ from _Sanctum 2_.
+	#[rustfmt::skip]
 	const PARK: [[Tile; 16]; 14] = [
 		// 0     1       2       3       4       5       6       7       8       9       10      11      12     13     14      15
-		[
-			Impass, Impass, Impass, Impass, Impass, Impass, Impass, Impass, Impass, Impass, Impass,
-			Empty, Empty, Empty, Empty, Empty,
-		], // 0
-		[
-			Pass, Pass, Pass, Pass, Empty, Empty, Empty, Empty, Empty, Impass, Impass, Empty,
-			Empty, Empty, Empty, Empty,
-		], // 1
-		[
-			Spawn, Pass, Pass, Pass, Empty, Empty, Empty, Empty, Empty, Impass, Impass, Empty,
-			Empty, Empty, Empty, Empty,
-		], // 2
-		[
-			Pass, Pass, Pass, Pass, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty,
-			Empty, Empty, Empty,
-		], // 3
-		[
-			Pass, Pass, Pass, Pass, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty,
-			Empty, Empty, Empty,
-		], // 4
-		[
-			Impass, Impass, Impass, Impass, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty,
-			Empty, Empty, Empty, Empty,
-		], // 5
-		[
-			Impass, Impass, Impass, Impass, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty,
-			Empty, Empty, Empty, Empty,
-		], // 6
-		[
-			Impass, Impass, Impass, Impass, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty,
-			Empty, Empty, Empty, Empty,
-		], // 7
-		[
-			Impass, Impass, Impass, Impass, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty,
-			Empty, Empty, Empty, Empty,
-		], // 8
-		[
-			Impass, Impass, Impass, Impass, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty,
-			Empty, Empty, Impass, Empty,
-		], // 9
-		[
-			Impass, Impass, Impass, Impass, Pass, Pass, Pass, Pass, Empty, Empty, Empty, Empty,
-			Empty, Empty, Empty, Empty,
-		], // 10
-		[
-			Impass, Impass, Impass, Impass, Pass, Core, Core, Pass, Empty, Empty, Empty, Empty,
-			Empty, Empty, Empty, Empty,
-		], // 11
-		[
-			Impass, Impass, Impass, Impass, Pass, Core, Core, Pass, Empty, Empty, Empty, Impass,
-			Empty, Empty, Empty, Empty,
-		], // 12
-		[
-			Impass, Impass, Impass, Impass, Pass, Pass, Pass, Pass, Empty, Empty, Empty, Empty,
-			Empty, Empty, Empty, Empty,
-		], // 13
+		[Impass, Impass, Impass, Impass, Impass, Impass, Impass, Impass, Impass, Impass, Impass, Empty,  Empty, Empty, Empty,  Empty], // 0
+		[Pass,   Pass,   Pass,   Pass,   Empty,  Empty,  Empty,  Empty,  Empty,  Impass, Impass, Empty,  Empty, Empty, Empty,  Empty], // 1
+		[Spawn,  Pass,   Pass,   Pass,   Empty,  Empty,  Empty,  Empty,  Empty,  Impass, Impass, Empty,  Empty, Empty, Empty,  Empty], // 2
+		[Pass,   Pass,   Pass,   Pass,   Empty,  Empty,  Empty,  Empty,  Empty,  Empty,  Empty,  Empty,  Empty, Empty, Empty,  Empty], // 3
+		[Pass,   Pass,   Pass,   Pass,   Empty,  Empty,  Empty,  Empty,  Empty,  Empty,  Empty,  Empty,  Empty, Empty, Empty,  Empty], // 4
+		[Impass, Impass, Impass, Impass, Empty,  Empty,  Empty,  Empty,  Empty,  Empty,  Empty,  Empty,  Empty, Empty, Empty,  Empty], // 5
+		[Impass, Impass, Impass, Impass, Empty,  Empty,  Empty,  Empty,  Empty,  Empty,  Empty,  Empty,  Empty, Empty, Empty,  Empty], // 6
+		[Impass, Impass, Impass, Impass, Empty,  Empty,  Empty,  Empty,  Empty,  Empty,  Empty,  Empty,  Empty, Empty, Empty,  Empty], // 7
+		[Impass, Impass, Impass, Impass, Empty,  Empty,  Empty,  Empty,  Empty,  Empty,  Empty,  Empty,  Empty, Empty, Empty,  Empty], // 8
+		[Impass, Impass, Impass, Impass, Empty,  Empty,  Empty,  Empty,  Empty,  Empty,  Empty,  Empty,  Empty, Empty, Impass, Empty], // 9
+		[Impass, Impass, Impass, Impass, Pass,   Pass,   Pass,   Pass,   Empty,  Empty,  Empty,  Empty,  Empty, Empty, Empty,  Empty], // 10
+		[Impass, Impass, Impass, Impass, Pass,   Core,   Core,   Pass,   Empty,  Empty,  Empty,  Empty,  Empty, Empty, Empty,  Empty], // 11
+		[Impass, Impass, Impass, Impass, Pass,   Core,   Core,   Pass,   Empty,  Empty,  Empty,  Impass, Empty, Empty, Empty,  Empty], // 12
+		[Impass, Impass, Impass, Impass, Pass,   Pass,   Pass,   Pass,   Empty,  Empty,  Empty,  Empty,  Empty, Empty, Empty,  Empty], // 13
 	];
 
 	#[test]

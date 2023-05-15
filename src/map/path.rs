@@ -78,12 +78,11 @@ impl Path {
 	///
 	/// * `Some(Path)` if there is a [`Path`].
 	/// * `None` if there is no [`Path`].
-	pub fn from_entrances_or_exits(
-		tileset: &Tileset,
-		entrances_or_exits: &HashSet<Coordinate>,
-	) -> Option<Self> {
+	pub fn from_entrances_or_exits<'coord, I>(tileset: &Tileset, entrances_or_exits: I) -> Option<Self>
+	where
+		I: Iterator<Item = &'coord Coordinate>,
+	{
 		entrances_or_exits
-			.iter()
 			.map(|entrance_or_exit| Path::from_coordinate(tileset, *entrance_or_exit, Tile::Core))
 			.flatten()
 			.reduce(Path::return_shorter)
@@ -154,7 +153,7 @@ mod tests {
 		let test_paths: Vec<_> = spawn_region_entrances
 			.into_iter()
 			.map(|entrances| {
-				Path::from_entrances_or_exits(&test_tileset, &entrances).expect(PATH_HAS_COORDINATE)
+				Path::from_entrances_or_exits(&test_tileset, entrances.iter()).expect(PATH_HAS_COORDINATE)
 			})
 			.collect();
 		println!(

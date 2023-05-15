@@ -48,7 +48,11 @@ impl ShortestPath {
 		diagonals: bool,
 	) -> Option<Self> {
 		start_points
-			.map(|coord| ShortestPath::from_grid_coordinate_to_tile(&grid, build, *coord, end_tile, diagonals))
+			.map(|coord| {
+				ShortestPath::from_grid_coordinate_to_tile(
+					&grid, build, *coord, end_tile, diagonals,
+				)
+			})
 			.flatten()
 			.reduce_with(ShortestPath::return_shorter)
 	}
@@ -122,15 +126,14 @@ impl ShortestPath {
 			// Only keep looking beyond a passable tile, and if the current tile is not what we're
 			// searching for.
 			else if tile.is_passable() {
-				Adjacent::from_grid_coordinate_with_build(&grid, build, &coord, diagonals).for_each(
-					|adjacent_coord| {
+				Adjacent::from_grid_coordinate_with_build(&grid, build, &coord, diagonals)
+					.for_each(|adjacent_coord| {
 						let mut new_path = Vec::with_capacity(current_path.len() + 1);
 						new_path.extend_from_slice(&current_path);
 						new_path.push(adjacent_coord);
 
 						coordinate_path_queue.push_back((adjacent_coord, new_path))
-					},
-				);
+					});
 			}
 
 			// Now that the current coordinate has been fully evaluated, mark it as visited.
@@ -236,11 +239,14 @@ mod tests {
 		);
 
 		let start = Instant::now();
-		let test_from_entrances_to_any_core =
-			ShortestPath::from_entrances_to_any_core(&test_tileset, Option::<&HashSet<_>>::None, true)
-				.into_iter()
-				.flatten()
-				.collect::<Vec<_>>();
+		let test_from_entrances_to_any_core = ShortestPath::from_entrances_to_any_core(
+			&test_tileset,
+			Option::<&HashSet<_>>::None,
+			true,
+		)
+		.into_iter()
+		.flatten()
+		.collect::<Vec<_>>();
 		println!(
 			"ShortestPath::from_entrances_to_any_core {}us",
 			Instant::now().duration_since(start).as_micros()

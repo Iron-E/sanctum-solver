@@ -5,7 +5,7 @@ pub use error::{Error, Result};
 use {
 	super::{Adjacent, Coordinate, Tile},
 	serde::{Deserialize, Serialize},
-	std::collections::HashSet,
+	std::collections::{HashSet, LinkedList},
 };
 
 pub const COORDINATE_ON_TILESET: &str = "Expected to visit coordinate which exists on tileset.";
@@ -60,10 +60,12 @@ impl Tileset {
 	fn get_adjacent_to(&self, start: Coordinate, needle: Tile) -> HashSet<Coordinate> {
 		let start_tile = start.get_from(&self.0).expect(COORDINATE_ON_TILESET);
 
-		let mut coordinate_queue = vec![start];
+		let mut coordinate_queue = LinkedList::new();
 		let mut visited = HashSet::new();
 
-		while let Some(coord) = coordinate_queue.pop() {
+		coordinate_queue.push_back(start);
+
+		while let Some(coord) = coordinate_queue.pop_front() {
 			// Don't revisit a coordinate we've already been to.
 			if visited.contains(&coord) {
 				continue;
@@ -80,7 +82,7 @@ impl Tileset {
 				|| (tile.is_passable() && tile != needle)
 			{
 				Adjacent::<Coordinate>::from_array_coordinate(&self.0, &coord)
-					.for_each(|adjacent| coordinate_queue.push(adjacent));
+					.for_each(|adjacent| coordinate_queue.push_back(adjacent));
 			}
 		}
 
@@ -102,10 +104,12 @@ impl Tileset {
 		let mut buckets = Vec::<HashSet<Coordinate>>::new();
 
 		let get_region = |start: Coordinate| -> HashSet<Coordinate> {
-			let mut coordinate_queue = vec![start];
+			let mut coordinate_queue = LinkedList::new();
 			let mut visited = HashSet::new();
 
-			while let Some(coord) = coordinate_queue.pop() {
+			coordinate_queue.push_back(start);
+
+			while let Some(coord) = coordinate_queue.pop_front() {
 				// Don't revisit a coordinate we've already been to.
 				if visited.contains(&coord) {
 					continue;
@@ -120,7 +124,7 @@ impl Tileset {
 					visited.insert(coord);
 
 					Adjacent::<Coordinate>::from_array_coordinate(&self.0, &coord)
-						.for_each(|adjacent| coordinate_queue.push(adjacent));
+						.for_each(|adjacent| coordinate_queue.push_back(adjacent));
 				}
 			}
 

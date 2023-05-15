@@ -1,14 +1,16 @@
 use {
 	super::{
-		tileset::{Tileset, COORDINATE_ON_TILESET, REGION_HAS_COORDINATE},
+		tileset::{Tileset, COORDINATE_ON_TILESET},
 		Coordinate, ShortestPath, Tile,
 	},
 	std::collections::HashSet,
+	serde::{Deserialize, Serialize},
 };
 
 /// # Summary
 ///
 /// A set of blocks for a [`Tileset`].
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Build {
 	pub blocks: HashSet<Coordinate>,
 }
@@ -45,12 +47,35 @@ impl Build {
 			Some(max) => max > build.blocks.len(),
 			_ => true,
 		} {
-			let shortest_path = ShortestPath::from_any_to(
+			for coord in ShortestPath::from_any_to(
 				&tileset,
 				Some(&build),
 				tileset.entrances[switch_entrance()].iter(),
 				&tileset.exits,
-			);
+			)
+			.expect("Expected build to be valid")
+			.coordinates()
+			.into_iter()
+			.rev()
+			.filter(|coord| {
+				coord.get_from(&tileset.grid).expect(COORDINATE_ON_TILESET) == Tile::Empty
+			}) {
+				// TODO: check to see if any blocks can be removed from the build without removing any
+				//       distance from the path.
+
+				// TODO: check if no more blocks can be placed (i.e. the build is optimal) and exit
+				//       early.
+
+				if build.blocks.contains(&coord) { continue; }
+
+				build.blocks.insert(coord);
+
+				if build.is_valid_for(&tileset) {
+					break;
+				}
+
+				build.blocks.remove(&coord);
+			}
 		}
 
 		build
@@ -84,6 +109,25 @@ mod tests {
 		crate::map::tileset::tests::PARK_TWO_SPAWN,
 		std::time::Instant,
 	};
+
+	#[test]
+	fn from_entrances_to_any_exit() {
+		let test_tileset = Tileset::new(
+			PARK_TWO_SPAWN
+				.iter()
+				.map(|inner| inner.iter().copied().collect())
+				.collect(),
+		);
+
+		let start = Instant::now();
+		let build = Build::from_entrances_to_any_exit(&test_tileset, Some(10));
+		println!(
+			"Build::from_entrances_to_any_exit {}us",
+			Instant::now().duration_since(start).as_micros()
+		);
+
+		// TODO: write assertions
+	}
 
 	#[test]
 	fn is_valid() {

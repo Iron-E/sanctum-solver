@@ -8,7 +8,7 @@ impl Coordinate {
 	/// # Summary
 	///
 	/// Retrieve the `T` value stored at the [`Coordinate`] in array.
-	pub fn get<T>(&self, array: &[impl AsRef<[T]>]) -> Option<T>
+	pub fn get_from<T>(&self, array: &[impl AsRef<[T]>]) -> Option<T>
 	where
 		T: Copy,
 	{
@@ -36,8 +36,8 @@ mod tests {
 			vec![21, 22, 23, 24, 25],
 		];
 
-		assert_eq!(Coordinate(2,2).get(&array), Some(13));
-		assert_eq!(Coordinate(0,1).get(&array), Some(6));
-		assert_eq!(Coordinate(100,1).get(&array), None);
+		assert_eq!(Coordinate(2,2).get_from(&array), Some(13));
+		assert_eq!(Coordinate(0,1).get_from(&array), Some(6));
+		assert_eq!(Coordinate(100,1).get_from(&array), None);
 	}
 }

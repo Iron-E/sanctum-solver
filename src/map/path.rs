@@ -4,7 +4,7 @@ use {
 		Adjacent, Coordinate, Tile,
 	},
 	serde::{Deserialize, Serialize},
-	std::collections::{HashMap, HashSet, LinkedList},
+	std::collections::{HashMap, LinkedList},
 };
 
 pub const PATH_HAS_COORDINATE: &str = "Expected path to have at least one coordinate.";

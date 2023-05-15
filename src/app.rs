@@ -1,7 +1,7 @@
 mod error;
 
 use {
-	crate::map::{Build, Map, tileset::Tileset},
+	crate::map::{tileset::Tileset, Build, Map},
 	error::Result,
 	std::{fs, path::PathBuf},
 	structopt::StructOpt,
@@ -19,7 +19,11 @@ pub struct App {
 	#[structopt(help = "The maximum number of blocks to place", long, short)]
 	blocks: Option<usize>,
 
-	#[structopt(help="Where to save the output. If not specified, goes to `stdout`", long, short)]
+	#[structopt(
+		help = "Where to save the output. If not specified, goes to `stdout`",
+		long,
+		short
+	)]
 	output: Option<PathBuf>,
 }
 

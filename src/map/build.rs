@@ -90,7 +90,10 @@ impl Build {
 	///
 	/// Get the longest build for a specific `tileset` by taking priority on the current shortest
 	/// path.
-	pub fn from_entrances_to_any_core_with_priority(tileset: &Tileset, max_blocks: Option<usize>) -> Self {
+	pub fn from_entrances_to_any_core_with_priority(
+		tileset: &Tileset,
+		max_blocks: Option<usize>,
+	) -> Self {
 		let mut build = Build {
 			blocks: HashSet::new(),
 		};
@@ -205,11 +208,23 @@ impl Build {
 				let actual_shortest_path =
 					ShortestPath::from_entrances_to_any_core(&tileset, Some(&self));
 
-				if &actual_shortest_path
-					!= expected_shortest_path
-						.as_ref()
-						.expect("Expected `shortest_path` to be `Some` by now")
-				{
+				if !actual_shortest_path
+					.into_iter()
+					.zip(
+						expected_shortest_path
+							.as_ref()
+							.expect("`expected_shortest_path` should be `Some` by now"),
+					)
+					.all(|(actual, expected)| {
+						&actual == expected
+							|| match actual {
+								Some(a) => a.len(),
+								_ => 0,
+							} > match expected {
+								Some(e) => e.len(),
+								_ => 0,
+							}
+					}) {
 					self.blocks.insert(adjacent);
 				}
 			}

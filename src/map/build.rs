@@ -6,9 +6,7 @@ use {
 		Adjacent, Coordinate, ShortestPath, Tile,
 	},
 	crate::Container,
-	rayon::iter::{
-		IndexedParallelIterator, IntoParallelIterator, IntoParallelRefIterator, ParallelIterator,
-	},
+	rayon::iter::IntoParallelRefIterator,
 	serde::{Deserialize, Serialize},
 	std::collections::{BTreeMap, HashSet, LinkedList},
 	temp_build::TempBuild,
@@ -64,7 +62,7 @@ impl Build {
 				current_entrance
 			};
 
-			if let Some((coord, _)) = Vec::from(
+			for coord in Vec::from(
 				ShortestPath::from_any_grid_coordinate_to_tile(
 					&tileset.grid,
 					Some(&build.blocks),
@@ -73,33 +71,29 @@ impl Build {
 				)
 				.expect(VALID_BUILD),
 			)
-			.into_par_iter()
+			.into_iter()
+			.rev()
 			.filter(|coord| {
 				// We only want empty tiles
 				coord.get_from(&tileset.grid).expect(COORDINATE_ON_TILESET) == Tile::Empty
-			})
-			.map(|coord| {
+			}) {
 				// Test the build with the coordinate inserted.
-				(
-					coord,
-					ShortestPath::from_any_grid_coordinate_to_tile(
-						&tileset.grid,
-						Some(&TempBuild {
-							blocks: &build.blocks,
-							temp_block: coord,
-						}),
-						tileset.entrances_by_region[entrance].par_iter(),
-						Tile::Core,
-					),
-				)
-			})
-			.filter_map(|(coord, path)| path.and_then(|p| Some((coord, p))))
-			.max_by_key(|(_, path)| path.len())
-			{
-				build.blocks.insert(coord);
-				build.try_remove_adjacent_to(&tileset, coord);
-				// Mark the block as having been placed.
-				placements += 1;
+				if Build::is_valid(
+					&tileset,
+					&TempBuild {
+						blocks: &build.blocks,
+						temp_block: coord,
+					},
+				) {
+					// Insert the coord now that we know it is valid.
+					build.blocks.insert(coord);
+					build.try_remove_adjacent_to(&tileset, coord);
+
+					// Mark the block as having been placed.
+					placements += 1;
+
+					break;
+				}
 			}
 		}
 
@@ -163,20 +157,22 @@ impl Build {
 			for coord in shortest_path_vec.into_iter().rev().filter(|coord| {
 				coord.get_from(&tileset.grid).expect(COORDINATE_ON_TILESET) == Tile::Empty
 			}) {
-				// Insert the coordinate into the build, just to test if it's valid in there.
-				build.blocks.insert(coord);
-
-				if Build::is_valid(&tileset, &build.blocks) {
-					// If it's valid, recalculate the shortest path.
-					shortest_paths_by_region.insert(shortest_path!(), region_index);
-
+				if Build::is_valid(
+					&tileset,
+					&TempBuild {
+						blocks: &build.blocks,
+						temp_block: coord,
+					},
+				) {
+					// It was valid, so insert it.
+					build.blocks.insert(coord);
 					build.try_remove_adjacent_to(&tileset, coord);
+
+					// Recalculate the shortest path as well.
+					shortest_paths_by_region.insert(shortest_path!(), region_index);
 
 					break;
 				}
-
-				// Build was not valid with coordinate; remove it.
-				build.blocks.remove(&coord);
 			}
 		}
 

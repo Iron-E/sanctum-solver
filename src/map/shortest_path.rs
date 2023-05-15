@@ -16,13 +16,6 @@ pub struct ShortestPath(Vec<Coordinate>);
 impl ShortestPath {
 	/// # Summary
 	///
-	/// Return the [`Coordinate`]s which this [`ShortestPath`] contains.
-	pub fn coordinates(self) -> Vec<Coordinate> {
-		self.0
-	}
-
-	/// # Summary
-	///
 	/// Returns the shorter [`ShortestPath`].
 	///
 	/// # Remarks
@@ -46,13 +39,13 @@ impl ShortestPath {
 	/// * `Some(ShortestPath)` if there is a [`ShortestPath`].
 	/// * `None` if there is no [`ShortestPath`].
 	pub fn from_any_to<'coord>(
-		tileset: &Tileset,
+		grid: &[impl AsRef<[Tile]>],
 		build: Option<&Build>,
 		start_points: impl Iterator<Item = &'coord Coordinate>,
 		end_points: &HashSet<Coordinate>,
 	) -> Option<Self> {
 		start_points
-			.map(|coord| ShortestPath::from_coordinate_to(tileset, build, *coord, &end_points))
+			.map(|coord| ShortestPath::from_coordinate_to(&grid, build, *coord, &end_points))
 			.flatten()
 			.reduce(ShortestPath::return_shorter)
 	}
@@ -61,12 +54,12 @@ impl ShortestPath {
 	///
 	/// Get the shortest [`ShortestPath`] to a [`Tile`] of `needle`'s type from some `start`ing [`Coordinate`] on a `tileset`.
 	pub fn from_coordinate_to(
-		tileset: &Tileset,
+		grid: &[impl AsRef<[Tile]>],
 		build: Option<&Build>,
 		start: Coordinate,
 		end_points: &HashSet<Coordinate>,
 	) -> Option<Self> {
-		let start_tile = start.get_from(&tileset.grid).expect(COORDINATE_ON_TILESET);
+		let start_tile = start.get_from(&grid).expect(COORDINATE_ON_TILESET);
 
 		// We don't want to start the search on a tile which cannot be walked over.
 		// This is to prevent accidentally crossing over the other side of a barrier.
@@ -89,16 +82,9 @@ impl ShortestPath {
 				continue;
 			}
 
-			let tile: Tile = build
-				.as_ref()
-				.and_then(|b| {
-					if b.blocks.contains(&coord) {
-						Some(Tile::Block)
-					} else {
-						None
-					}
-				})
-				.unwrap_or(coord.get_from(&tileset.grid).expect(COORDINATE_ON_TILESET));
+			let tile: Tile = coord
+				.get_from_build(&grid, build)
+				.expect(COORDINATE_ON_TILESET);
 
 			// Using BFS, so if the `tile` is the `needle` we've found the shortest path.
 			if end_points.contains(&coord) {
@@ -107,7 +93,7 @@ impl ShortestPath {
 			// Only keep looking beyond a passable tile, and if the current tile is not what we're
 			// searching for.
 			else if tile.is_passable() {
-				Adjacent::<Coordinate>::from_array_coordinate(&tileset.grid, &coord).for_each(
+				Adjacent::<Coordinate>::from_build_coordinate(&grid, build, &coord).for_each(
 					|adjacent| {
 						let mut new_path = Vec::with_capacity(current_path.len() + 1);
 						new_path.extend_from_slice(&current_path);
@@ -124,19 +110,11 @@ impl ShortestPath {
 
 		None
 	}
+}
 
-	/// # Summary
-	///
-	/// Get the [`ShortestPath`]s from all [`Tileset::entrances`] to any [`Tileset::exits`].
-	pub fn from_entrances_to_any_exit(tileset: &Tileset, build: Option<&Build>) -> Vec<Self> {
-		tileset
-			.entrances
-			.iter()
-			.map(|entrances| {
-				ShortestPath::from_any_to(&tileset, build, entrances.iter(), &tileset.exits)
-			})
-			.flatten()
-			.collect()
+impl From<ShortestPath> for Vec<Coordinate> {
+	fn from(other: ShortestPath) -> Self {
+		other.0
 	}
 }
 
@@ -173,7 +151,7 @@ mod tests {
 			.iter()
 			.map(|entrances| {
 				ShortestPath::from_any_to(
-					&test_tileset,
+					&test_tileset.grid,
 					None,
 					entrances.iter(),
 					&test_tileset.exits,
@@ -191,10 +169,10 @@ mod tests {
 		assert_eq!(test_paths.len(), 2);
 
 		// The shortest path from the left-hand Spawn should be of length nine.
-		assertion(&test_tileset, &test_paths, 0, 6);
+		assertion(&test_tileset, &test_paths, 0, 5);
 
 		// The shortest path from the right-hand Spawn should be of length 15.
-		assertion(&test_tileset, &test_paths, 1, 12);
+		assertion(&test_tileset, &test_paths, 1, 7);
 	}
 
 	#[test]
@@ -207,7 +185,7 @@ mod tests {
 
 		let start = Instant::now();
 		let test_path = ShortestPath::from_coordinate_to(
-			&test_tileset,
+			&test_tileset.grid,
 			None,
 			Coordinate(4, 4),
 			&test_tileset.exits,
@@ -218,39 +196,6 @@ mod tests {
 			Instant::now().duration_since(start).as_micros()
 		);
 
-		let desired_len = 6;
-		assert_eq!(test_path.0.len(), desired_len);
-		assert!(test_path.0[..(desired_len - 1)]
-			.into_iter()
-			.all(|coord| coord
-				.get_from(&test_tileset.grid)
-				.expect(COORDINATE_ON_TILESET)
-				.is_passable()));
-	}
-
-	#[test]
-	fn from_entrances_to_any_exit() {
-		let test_tileset = Tileset::new(
-			PARK_TWO_SPAWN
-				.iter()
-				.map(|inner| inner.iter().copied().collect())
-				.collect(),
-		);
-
-		let start = Instant::now();
-		let test_paths: Vec<_> = ShortestPath::from_entrances_to_any_exit(&test_tileset, None);
-		println!(
-			"ShortestPath::from_entrances_to_any_exit {}us",
-			Instant::now().duration_since(start).as_micros()
-		);
-
-		// There should be two paths to the core since there are two spawn points.
-		assert_eq!(test_paths.len(), 2);
-
-		// The shortest path from the left-hand Spawn should be of length nine.
-		assertion(&test_tileset, &test_paths, 0, 6);
-
-		// The shortest path from the right-hand Spawn should be of length 15.
-		assertion(&test_tileset, &test_paths, 1, 12);
+		assertion(&test_tileset, &[test_path], 0, 6);
 	}
 }

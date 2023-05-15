@@ -7,19 +7,65 @@ use {
 	std::collections::{HashMap, LinkedList},
 };
 
-pub const PATH_HAS_COORDINATE: &str = "Expected path to have at least one coordinate.";
+pub const PATH_EXISTS: &str = "Expected path to have at least one coordinate.";
 
 /// # Summary
 ///
 /// A two-dimensional array / grid of [`Tile`]s.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-pub struct Path(pub Vec<Coordinate>);
+pub struct Path(Vec<Coordinate>);
 
 impl Path {
 	/// # Summary
 	///
+	/// Return the [`Coordinate`]s which this [`Path`] contains.
+	pub fn coordinates(self) -> Vec<Coordinate> {
+		self.0
+	}
+
+	/// # Summary
+	///
+	/// Returns the shorter [`Path`].
+	///
+	/// # Remarks
+	///
+	/// If paths are equally long, the current path is preferred.
+	fn return_shorter(self, other: Self) -> Self {
+		if self.0.len() > other.0.len() {
+			return other;
+		}
+
+		self
+	}
+
+	/// # Summary
+	///
+	/// Find the shortest [`Path`] from some `coordiantes` on a `tileset` to any [`Tile`] `needle`
+	/// of `needle`'s type.
+	///
+	/// # Returns
+	///
+	/// * `Some(Path)` if there is a [`Path`].
+	/// * `None` if there is no [`Path`].
+	pub fn shortest_from_any_to<'coord>(
+		tileset: &Tileset,
+		coordinates: impl Iterator<Item = &'coord Coordinate>,
+		needle: Tile,
+	) -> Option<Self> {
+		coordinates
+			.map(|coord| Path::shortest_from_coordinate_to(tileset, *coord, needle))
+			.flatten()
+			.reduce(Path::return_shorter)
+	}
+
+	/// # Summary
+	///
 	/// Get the shortest [`Path`] to a [`Tile`] of `needle`'s type from some `start`ing [`Coordinate`] on a `tileset`.
-	fn from_coordinate(tileset: &Tileset, start: Coordinate, needle: Tile) -> Option<Self> {
+	pub fn shortest_from_coordinate_to(
+		tileset: &Tileset,
+		start: Coordinate,
+		needle: Tile,
+	) -> Option<Self> {
 		let start_tile = start.get_from(&tileset.0).expect(COORDINATE_ON_TILESET);
 
 		// We don't want to start the search on a tile which cannot be walked over.
@@ -69,51 +115,18 @@ impl Path {
 
 		None
 	}
-
-	/// # Summary
-	///
-	/// Find the shortest [`Path`] from some `entrances_or_exits` on a `tileset`.
-	///
-	/// # Returns
-	///
-	/// * `Some(Path)` if there is a [`Path`].
-	/// * `None` if there is no [`Path`].
-	pub fn from_entrances_or_exits<'coord, I>(tileset: &Tileset, entrances_or_exits: I) -> Option<Self>
-	where
-		I: Iterator<Item = &'coord Coordinate>,
-	{
-		entrances_or_exits
-			.map(|entrance_or_exit| Path::from_coordinate(tileset, *entrance_or_exit, Tile::Core))
-			.flatten()
-			.reduce(Path::return_shorter)
-	}
-
-	/// # Summary
-	///
-	/// Returns the shorter [`Path`].
-	///
-	/// # Remarks
-	///
-	/// If paths are equally long, the current path is preferred.
-	fn return_shorter(self, other: Self) -> Self {
-		if self.0.len() > other.0.len() {
-			return other;
-		}
-
-		self
-	}
 }
 
 #[cfg(test)]
 mod tests {
 	use {
-		super::{Coordinate, Path, Tile, Tileset, COORDINATE_ON_TILESET, PATH_HAS_COORDINATE},
+		super::{Coordinate, Path, Tile, Tileset, COORDINATE_ON_TILESET, PATH_EXISTS},
 		crate::map::tileset::tests::{PARK, PARK_TWO_SPAWN},
 		std::time::Instant,
 	};
 
 	#[test]
-	fn from_coordinate() {
+	fn shortest_from_coordinate_to() {
 		let test_tileset = Tileset(
 			PARK.iter()
 				.map(|row| row.iter().copied().collect())
@@ -121,9 +134,10 @@ mod tests {
 		);
 
 		let start = Instant::now();
-		let test_path = Path::from_coordinate(&test_tileset, Coordinate(4, 4), Tile::Core).unwrap();
+		let test_path =
+			Path::shortest_from_coordinate_to(&test_tileset, Coordinate(4, 4), Tile::Core).unwrap();
 		println!(
-			"Path::from_coordinate {}us",
+			"Path::shortest_from_coordinate_to {}us",
 			Instant::now().duration_since(start).as_micros()
 		);
 
@@ -153,11 +167,12 @@ mod tests {
 		let test_paths: Vec<_> = spawn_region_entrances
 			.into_iter()
 			.map(|entrances| {
-				Path::from_entrances_or_exits(&test_tileset, entrances.iter()).expect(PATH_HAS_COORDINATE)
+				Path::shortest_from_any_to(&test_tileset, entrances.iter(), Tile::Core)
+					.expect(PATH_EXISTS)
 			})
 			.collect();
 		println!(
-			"Path::from_entrances_or_exits {}us",
+			"Path::shortest_from_any_to {}us",
 			Instant::now().duration_since(start).as_micros() / (number_of_regions as u128)
 		);
 

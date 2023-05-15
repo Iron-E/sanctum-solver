@@ -1,4 +1,7 @@
-use serde::{Deserialize, Serialize};
+use {
+	super::{Build, Tile},
+	serde::{Deserialize, Serialize},
+};
 
 /// # Summary
 ///
@@ -10,11 +13,11 @@ impl Coordinate {
 	/// # Summary
 	///
 	/// Retrieve the `T` value stored at the [`Coordinate`] in array.
-	pub fn get_from<T>(&self, array: &[impl AsRef<[T]>]) -> Option<T>
+	pub fn get_from<T>(&self, grid: &[impl AsRef<[T]>]) -> Option<T>
 	where
 		T: Copy,
 	{
-		if let Some(inner) = array.get(self.1) {
+		if let Some(inner) = grid.get(self.1) {
 			if let Some(value) = inner.as_ref().get(self.0) {
 				return Some(*value);
 			}
@@ -25,13 +28,32 @@ impl Coordinate {
 
 	/// # Summary
 	///
+	/// Get some [`Coordinate`] from a `grid`, but only if it is not present in the `build`.
+	///
+	/// # Returns
+	///
+	/// * If `build` is [`None`], [`Self::get_from`] `grid`.
+	/// * If `build` is [`Some`], [`Tile::Block`].
+	pub fn get_from_build(
+		&self,
+		grid: &[impl AsRef<[Tile]>],
+		build: Option<&Build>,
+	) -> Option<Tile> {
+		match build {
+			Some(b) if b.blocks.contains(&self) => Some(Tile::Block),
+			_ => self.get_from(grid),
+		}
+	}
+
+	/// # Summary
+	///
 	/// Set the `T` value stored at the [`Coordinate`] in array.
 	///
 	/// # Panics
 	///
 	/// If `array[self.1][self.0]` is out of bounds.
-	pub fn set<T>(&self, array: &mut [impl AsMut<[T]>], value: T) {
-		if let Some(inner) = array.get_mut(self.1) {
+	pub fn set<T>(&self, grid: &mut [impl AsMut<[T]>], value: T) {
+		if let Some(inner) = grid.get_mut(self.1) {
 			inner.as_mut()[self.0] = value
 		}
 	}

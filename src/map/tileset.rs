@@ -5,7 +5,7 @@ pub use error::{Error, Result};
 use {
 	super::{Adjacent, Coordinate, Tile},
 	serde::{Deserialize, Serialize},
-	std::collections::{HashMap, HashSet},
+	std::collections::HashSet,
 };
 
 pub const COORDINATE_ON_TILESET: &str = "Expected to visit coordinate which exists on tileset.";

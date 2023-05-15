@@ -18,5 +18,5 @@ use {
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Map {
 	pub name: String,
-	pub tileset: Tileset,
+	pub grid: Vec<Vec<Tile>>,
 }

@@ -4,7 +4,8 @@ use std::{
 	hash::Hash,
 };
 
-pub trait Container<T>: Send + Sync {
+pub trait Container<T>: Send + Sync
+{
 	/// # Summary
 	///
 	/// Return `true` if `some` value is contained in this [`Container`].
@@ -16,7 +17,8 @@ where
 	K: Hash + Ord + Send + Sync,
 	V: Send + Sync,
 {
-	fn contains(&self, some: &K) -> bool {
+	fn contains(&self, some: &K) -> bool
+	{
 		self.contains_key(some)
 	}
 }
@@ -26,7 +28,8 @@ where
 	K: Eq + Hash + Send + Sync,
 	V: Send + Sync,
 {
-	fn contains(&self, some: &K) -> bool {
+	fn contains(&self, some: &K) -> bool
+	{
 		self.contains_key(some)
 	}
 }
@@ -35,7 +38,8 @@ impl<T> Container<T> for HashSet<T>
 where
 	T: Eq + Hash + Send + Sync,
 {
-	fn contains(&self, some: &T) -> bool {
+	fn contains(&self, some: &T) -> bool
+	{
 		HashSet::contains(self, some)
 	}
 }

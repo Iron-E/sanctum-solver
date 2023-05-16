@@ -1,4 +1,5 @@
-use {super::Coordinate, crate::Container};
+use super::Coordinate;
+use crate::Container;
 
 /// # Summary
 ///
@@ -18,7 +19,8 @@ impl<C> Container<Coordinate> for TempBuild<'_, C>
 where
 	C: Container<Coordinate>,
 {
-	fn contains(&self, some: &Coordinate) -> bool {
+	fn contains(&self, some: &Coordinate) -> bool
+	{
 		self.blocks.contains(some) || self.temp_block == *some
 	}
 }

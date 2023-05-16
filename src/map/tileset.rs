@@ -1,12 +1,11 @@
 mod error;
 
-pub use error::{Error, Result};
+use std::collections::{HashMap, HashSet, LinkedList};
 
-use {
-	super::{Adjacent, Coordinate, Tile},
-	std::collections::{HashMap, HashSet, LinkedList},
-	serde::{Deserialize, Serialize},
-};
+pub use error::{Error, Result};
+use serde::{Deserialize, Serialize};
+
+use super::{Adjacent, Coordinate, Tile};
 
 pub const COORDINATE_ON_TILESET: &str = "Expected to visit coordinate which exists on tileset.";
 const IS_REGION: &str = "Expected to separate tiles which are regions.";
@@ -16,16 +15,19 @@ pub const REGION_HAS_COORDINATE: &str = "Expected the region to have at least on
 ///
 /// T two-dimensional array / grid of [`Tile`]s.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct Tileset {
+pub struct Tileset
+{
 	pub grid: Vec<Vec<Tile>>,
 	pub entrances_by_region: Vec<HashMap<Coordinate, usize>>,
 }
 
-impl Tileset {
+impl Tileset
+{
 	/// # Summary
 	///
 	/// Select all of the [`Tile::Empty`]s next to [`Tile::Spawn`] points on this [`Tileset`].
-	fn entrances(tileset: &[impl AsRef<[Tile]>]) -> Vec<HashMap<Coordinate, usize>> {
+	fn entrances(tileset: &[impl AsRef<[Tile]>]) -> Vec<HashMap<Coordinate, usize>>
+	{
 		Self::separate_regions(tileset, Tile::Spawn)
 			.expect(IS_REGION)
 			.into_iter()
@@ -48,7 +50,8 @@ impl Tileset {
 		grid: &[impl AsRef<[Tile]>],
 		start: Coordinate,
 		needle: Tile,
-	) -> HashMap<Coordinate, usize> {
+	) -> HashMap<Coordinate, usize>
+	{
 		let start_tile = start.get_from(&grid).expect(COORDINATE_ON_TILESET);
 
 		let mut coordinate_queue = LinkedList::new();
@@ -56,9 +59,11 @@ impl Tileset {
 
 		coordinate_queue.push_back(start);
 
-		while let Some(coord) = coordinate_queue.pop_front() {
+		while let Some(coord) = coordinate_queue.pop_front()
+		{
 			// Don't revisit a coordinate we've already been to.
-			if visited.contains_key(&coord) {
+			if visited.contains_key(&coord)
+			{
 				continue;
 			}
 
@@ -69,8 +74,8 @@ impl Tileset {
 			visited.insert(coord, tile);
 
 			// These are the tiles which we want to keep looking beyond.
-			if (start_tile.is_region() && tile == start_tile)
-				|| (tile.is_passable() && tile != needle)
+			if (start_tile.is_region() && tile == start_tile) ||
+				(tile.is_passable() && tile != needle)
 			{
 				Adjacent::from_grid_coordinate(&grid, &coord, false)
 					.for_each(|adjacent_coord| coordinate_queue.push_back(adjacent_coord));
@@ -88,11 +93,9 @@ impl Tileset {
 	/// # Summary
 	///
 	/// Create a new [`Tileset`] from some two-dimensional `grid` of [`Tile`]s.
-	pub fn new(grid: Vec<Vec<Tile>>) -> Self {
-		Self {
-			entrances_by_region: Self::entrances(&grid),
-			grid,
-		}
+	pub fn new(grid: Vec<Vec<Tile>>) -> Self
+	{
+		Self { entrances_by_region: Self::entrances(&grid), grid }
 	}
 
 	/// # Summary
@@ -101,8 +104,10 @@ impl Tileset {
 	fn separate_regions(
 		tileset: &[impl AsRef<[Tile]>],
 		start_tile: Tile,
-	) -> Result<Vec<HashSet<Coordinate>>> {
-		if !start_tile.is_region() {
+	) -> Result<Vec<HashSet<Coordinate>>>
+	{
+		if !start_tile.is_region()
+		{
 			return Err(Error::NotRegion { tile: start_tile });
 		}
 
@@ -114,9 +119,11 @@ impl Tileset {
 
 			coordinate_queue.push_back(start);
 
-			while let Some(coord) = coordinate_queue.pop_front() {
+			while let Some(coord) = coordinate_queue.pop_front()
+			{
 				// Don't revisit a coordinate we've already been to.
-				if visited.contains(&coord) {
+				if visited.contains(&coord)
+				{
 					continue;
 				}
 
@@ -124,8 +131,10 @@ impl Tileset {
 				let tile = coord.get_from(&tileset).expect(COORDINATE_ON_TILESET);
 
 				// These are the tiles which we want to keep looking beyond.
-				if tile == start_tile {
-					// We shouldn't count a coordinate as 'visited' until we can extract its tile value.
+				if tile == start_tile
+				{
+					// We shouldn't count a coordinate as 'visited' until we can extract its tile
+					// value.
 					visited.insert(coord);
 
 					Adjacent::from_grid_coordinate(&tileset, &coord, false)
@@ -143,7 +152,8 @@ impl Tileset {
 				.filter(|(_, row_value)| *row_value == &start_tile)
 				.for_each(|(x, _)| {
 					let coord = Coordinate(x, y);
-					if buckets.iter().all(|set| !set.contains(&coord)) {
+					if buckets.iter().all(|set| !set.contains(&coord))
+					{
 						buckets.push(get_region(Coordinate(x, y)))
 					}
 				})
@@ -154,11 +164,11 @@ impl Tileset {
 }
 
 #[cfg(test)]
-pub mod tests {
-	use {
-		super::{Coordinate, Tile, Tile::*, Tileset},
-		std::time::Instant,
-	};
+pub mod tests
+{
+	use std::time::Instant;
+
+	use super::{Coordinate, Tile, Tile::*, Tileset};
 
 	/// # Summary
 	///
@@ -205,13 +215,11 @@ pub mod tests {
 	];
 
 	#[test]
-	fn entrances() {
+	fn entrances()
+	{
 		let start = Instant::now();
 		let entrances = Tileset::entrances(&PARK);
-		println!(
-			"Tileset::entrances {}us",
-			Instant::now().duration_since(start).as_micros()
-		);
+		println!("Tileset::entrances {}us", Instant::now().duration_since(start).as_micros());
 
 		assert_eq!(entrances.len(), 1);
 		assert_eq!(
@@ -229,7 +237,8 @@ pub mod tests {
 	}
 
 	#[test]
-	fn separate_regions() {
+	fn separate_regions()
+	{
 		let start = Instant::now();
 		let core_regions = Tileset::separate_regions(&PARK_TWO_SPAWN, Tile::Core).unwrap();
 		let spawn_regions = Tileset::separate_regions(&PARK_TWO_SPAWN, Tile::Spawn).unwrap();
@@ -242,15 +251,10 @@ pub mod tests {
 		assert_eq!(core_regions.len(), 1);
 		assert_eq!(
 			core_regions[0],
-			[
-				Coordinate(5, 11),
-				Coordinate(5, 12),
-				Coordinate(6, 11),
-				Coordinate(6, 12)
-			]
-			.iter()
-			.copied()
-			.collect()
+			[Coordinate(5, 11), Coordinate(5, 12), Coordinate(6, 11), Coordinate(6, 12)]
+				.iter()
+				.copied()
+				.collect()
 		);
 
 		// Can't get a non-region.
@@ -258,13 +262,7 @@ pub mod tests {
 
 		// Two `spawn` regions
 		assert_eq!(spawn_regions.len(), 2);
-		assert_eq!(
-			spawn_regions[0],
-			[Coordinate(0, 2)].iter().copied().collect()
-		);
-		assert_eq!(
-			spawn_regions[1],
-			[Coordinate(15, 5)].iter().copied().collect()
-		);
+		assert_eq!(spawn_regions[0], [Coordinate(0, 2)].iter().copied().collect());
+		assert_eq!(spawn_regions[1], [Coordinate(15, 5)].iter().copied().collect());
 	}
 }

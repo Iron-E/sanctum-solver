@@ -4,7 +4,8 @@ use serde::{Deserialize, Serialize};
 ///
 /// A square on a [`Map`](super::Map).
 #[derive(Copy, Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-pub enum Tile {
+pub enum Tile
+{
 	/// # Summary
 	///
 	/// An [`Impass`](Self::Impass) space which used to be [`Empty`](Self::Empty)
@@ -37,11 +38,13 @@ pub enum Tile {
 	Spawn,
 }
 
-impl Tile {
+impl Tile
+{
 	/// # Summary
 	///
 	/// Whether or not some [`Tile`] can be moved through.
-	pub fn is_passable(&self) -> bool {
+	pub fn is_passable(&self) -> bool
+	{
 		matches!(self, Tile::Empty | Tile::Pass)
 	}
 
@@ -49,7 +52,8 @@ impl Tile {
 	///
 	/// Whether or not the [`Tile`] is region of space, wherein all tiles adjacent to each other of
 	/// similar type count as one bigger tile.
-	pub fn is_region(&self) -> bool {
+	pub fn is_region(&self) -> bool
+	{
 		matches!(self, Tile::Core | Tile::Spawn)
 	}
 }
